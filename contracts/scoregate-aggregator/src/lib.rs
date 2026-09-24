@@ -5,6 +5,8 @@ extern crate std;
 
 #[cfg(test)]
 mod test;
+#[cfg(test)]
+mod test_conflict_arbitration;
 const REQUIRED_SHARD_CAPABILITIES: [&str; 4] = ["score", "gate", "aggr", "arch"];
 use scoregate_score::{AggregateRiskScore, Error as ScoreError, RiskScore};
 use soroban_sdk::{
@@ -384,6 +386,10 @@ impl ScoreGateAggregator {
                 continue;
             }
             let client = scoregate_score::ScoreGateScoreContractClient::new(&env, &shard);
+            match client.try_is_score_stale(&wallet, &asset_pair) {
+                Ok(Ok(false)) => {}
+                _ => continue,
+            }
             match client.try_get_score(&wallet, &asset_pair) {
                 Ok(Ok(score)) => match &best {
                     None => best = Some(score),
@@ -651,10 +657,10 @@ impl ScoreGateAggregator {
 
         let status = if shard_count == 0 {
             SplitBrainStatus::NoShards
-        } else if quorum_count < required_quorum {
-            SplitBrainStatus::QuorumLost
         } else if mismatch_count > 0 {
             SplitBrainStatus::SplitBrain
+        } else if quorum_count < required_quorum {
+            SplitBrainStatus::QuorumLost
         } else {
             SplitBrainStatus::Aligned
         };
