@@ -37,7 +37,7 @@ magnitude = floor(b × (−ln(u)))
 where `u` is a uniform random variate in `(0, 1)`.  This is the standard
 **geometric mechanism** for integer-valued queries.
 
-### Deterministic PRNG
+### Deterministic PRNG (not cryptographic privacy)
 
 On-chain smart contracts have no access to true entropy.  Instead, the noise
 is derived from a **deterministic pseudo-random function** of the ledger
@@ -57,6 +57,15 @@ This means:
   `seed` on the same ledger sequence, the noise will differ.
 - **Caller-controlled seed** — callers can supply different `seed` values
   even within the same ledger to obtain independent noise samples.
+
+This mechanism is not a source of secret randomness. The ledger sequence,
+seed, epsilon, and contract code are observable, so an observer with ledger
+access can reproduce the exact noise and subtract it from the returned score.
+Consequently, this function must not be used to protect an aggregate score
+from validators, ledger observers, or any party that can reconstruct these
+inputs. A genuine privacy guarantee requires noise generated off-chain with
+secret entropy, or a commit-reveal protocol that keeps the entropy hidden
+until the result is fixed.
 
 ### Clamping
 
@@ -89,13 +98,11 @@ let private_score: u32 = client.get_private_aggregate_score(&wallet, &seed);
 
 ## Limits and Caveats
 
-1. **Deterministic PRNG is not true randomness.**  An adversary who knows
-   the contract source code and the ledger state can reproduce the noise
-   value exactly.  This is inherent to any on-chain "randomness" on Soroban
-   and is the standard trade-off.  The differential privacy guarantee is
-   still meaningful because the noise is *statistically* calibrated —
-   even a deterministic adversary sees a value drawn from the correct
-   distribution at the time of the call.
+1. **Deterministic PRNG is not a privacy boundary.** An adversary who knows
+  the contract source code and the ledger state can reproduce the noise value
+  exactly. The on-chain result therefore does not provide differential privacy
+  against observers with ledger access. Use off-chain secret entropy or a
+  commit-reveal protocol when that threat model matters.
 
 2. **ε is a parameter, not a proof.**  The contract does not enforce a
    privacy budget composition bound (e.g., no sequential composition
@@ -106,10 +113,9 @@ let private_score: u32 = client.get_private_aggregate_score(&wallet, &seed);
    bounded total spend.
 
 3. **Round‑off from clamping.**  When the noise is large enough to push the
-   result outside [0, 100], clamping truncates the distribution, but the
-   output remains within the valid score range and the privacy guarantee is
-   preserved (clamping is a post-processing step and does not increase the
-   privacy loss).
+  result outside [0, 100], clamping truncates the distribution. The output
+  remains within the valid score range, but clamping does not restore privacy
+  against observers who can reconstruct the deterministic noise.
 
 4. **No per‑pair private query.**  Only the cross-asset aggregate query
    (`get_private_aggregate_score`) has a private variant.  The per-pair

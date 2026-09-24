@@ -3877,9 +3877,10 @@ impl ScoreGateScoreContract {
     /// When ε > 0, Laplace noise calibrated to `sensitivity = 100` and
     /// `ε = epsilon_bps / 100.0` (e.g. 100 = ε 1.0) is added before returning.
     /// Noise is deterministic: derived from `seed`, the current ledger
-    /// sequence, and the ε value — unpredictable to callers but reproducible
-    /// for the same `(wallet, seed)` pair. Returns `0` when no pairs exist
-    /// for `wallet`.
+    /// sequence, and the ε value. This is reproducible by any observer with
+    /// ledger access and therefore does not provide cryptographic privacy
+    /// against on-chain observers. Returns `0` when no pairs exist for
+    /// `wallet`.
     pub fn get_private_aggregate_score(env: Env, wallet: Address, seed: u32) -> u32 {
         let epsilon_bps = storage::get_dp_epsilon(&env);
         let mut score = match Self::compute_aggregate_score(&env, &wallet) {
@@ -7760,7 +7761,7 @@ impl ScoreGateScoreContract {
         if !storage::has_admin(&env) {
             return Err(Error::NotInitialized);
         }
-        if threshold > 100 {
+        if threshold > constants::MAX_SCORE {
             return Err(Error::InvalidScore);
         }
         Self::require_admin_auth(&env, &admin_signers)?;
@@ -8972,6 +8973,9 @@ impl ScoreGateScoreContract {
     pub fn set_burst_capacity(env: Env, capacity: u32) -> Result<(), Error> {
         if !storage::has_admin(&env) {
             return Err(Error::NotInitialized);
+        }
+        if capacity == 0 || capacity > constants::MAX_BURST_CAPACITY {
+            return Err(Error::InvalidArgument);
         }
         storage::get_admin(&env).require_auth();
         storage::set_burst_capacity(&env, capacity);
