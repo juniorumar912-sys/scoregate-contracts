@@ -832,6 +832,7 @@ impl ScoreGateScoreContract {
         wallet: Address,
         asset_pair: Symbol,
     ) -> Result<(), Error> {
+        Self::require_not_frozen(&env)?;
         let pending =
             storage::get_pending_score(&env, &wallet, &asset_pair).ok_or(Error::NoPendingScore)?;
 
@@ -839,8 +840,6 @@ impl ScoreGateScoreContract {
         if now < pending.commit_after {
             return Err(Error::FinalityWindowNotElapsed);
         }
-
-        let previous_score = storage::peek_score(&env, &wallet, &asset_pair).map(|s| s.score);
 
         let risk_score = RiskScore {
             score: pending.score,
@@ -855,31 +854,7 @@ impl ScoreGateScoreContract {
             commitment: pending.commitment.clone(),
         };
 
-        storage::set_score(&env, &wallet, &asset_pair, &risk_score);
-        storage::push_score_history(&env, &wallet, &asset_pair, &risk_score);
-        storage::register_pair_for_wallet(&env, &wallet, &asset_pair);
-        storage::increment_score_count(&env, &wallet, &asset_pair);
-        // Increment per-pair submission counter (Issue 1).
-        storage::increment_pair_score_count(&env, &asset_pair);
-        // Increment unique wallet-pair counter on first-ever write (Issue 3).
-        // pending.score is committed only once, so there was no prior live score.
-        // We use peek_score which was called before set_score above — but at this
-        // point set_score has already run.  The pending path always replaces the
-        // live entry, so we treat "had no pending-committed score before" as new.
-        // The reliable signal is: register_pair_for_wallet just ran; if this is
-        // the first time, peek_score would have returned None before set_score.
-        // We detect it by checking whether the score count is now exactly 1.
-        if storage::get_score_count(&env, &wallet, &asset_pair) == 1 {
-            storage::increment_total_wallets_scored(&env);
-        }
-        Self::refresh_aggregate_cache(&env, &wallet);
-
-        let score_threshold = Self::get_effective_threshold(&env);
-        if pending.score >= score_threshold {
-            events::threshold_breached(&env, &wallet, &asset_pair, pending.score, score_threshold);
-        }
-
-        Self::emit_score_delta(&env, &wallet, &asset_pair, previous_score, pending.score);
+        Self::finalize_score_state(&env, &wallet, &asset_pair, &risk_score)?;
         storage::clear_pending_score(&env, &wallet, &asset_pair);
         events::score_committed(&env, &wallet, &asset_pair);
         Ok(())
@@ -1736,12 +1711,7 @@ impl ScoreGateScoreContract {
         submissions: Vec<ScoreSubmissionWithProof>,
         attestation: BatchAttestation,
     ) -> Result<BatchResult, Error> {
-        if !storage::has_admin(&env) {
-            return Err(Error::NotInitialized);
-        }
-        if storage::is_paused(&env) {
-            return Err(Error::ContractPaused);
-        }
+        Self::ensure_active(&env)?;
         // Epoch sealing: reject when no epoch is open (#301).
         if !storage::is_epoch_open(&env) {
             return Err(Error::EpochClosed);
@@ -11237,7 +11207,15 @@ impl ScoreGateScoreContract {
         if !storage::has_admin(env) {
             return Err(Error::NotInitialized);
         }
+        Self::require_not_frozen(env)?;
         if storage::is_paused(env) {
+            return Err(Error::ContractPaused);
+        }
+        Ok(())
+    }
+
+    fn require_not_frozen(env: &Env) -> Result<(), Error> {
+        if storage::is_frozen(env) {
             return Err(Error::ContractPaused);
         }
         Ok(())
@@ -11384,6 +11362,81 @@ impl ScoreGateScoreContract {
         Ok(())
     }
 
+    fn finalize_score_state(
+        env: &Env,
+        wallet: &Address,
+        asset_pair: &Symbol,
+        risk_score: &RiskScore,
+    ) -> Result<(), Error> {
+        let previous_score = storage::peek_score(env, wallet, asset_pair).map(|s| s.score);
+        let is_new_wallet_pair = previous_score.is_none();
+        let now = env.ledger().timestamp();
+
+        storage::set_score(env, wallet, asset_pair, risk_score);
+        storage::set_score_submission_ledger(env, wallet, asset_pair, env.ledger().sequence());
+        let floor_policy = storage::get_score_floor_policy(env);
+        let service_set = storage::get_service_set(env);
+        let provenance = SubmissionProvenance {
+            model_version: risk_score.model_version,
+            service_threshold: storage::get_service_threshold(env),
+            signers_count: service_set.len(),
+            score_floor_enabled: floor_policy.enabled,
+            score_floor_high_water_mark: floor_policy.high_water_mark,
+            score_floor_value: floor_policy.floor_value,
+            cooldown_secs: storage::get_pair_cooldown_secs(env, asset_pair),
+            epoch_id: storage::get_current_epoch(env),
+            ledger_sequence: env.ledger().sequence(),
+            submitted_at: now,
+            validation_branch: if !service_set.is_empty()
+                && storage::get_service_threshold(env) > 0
+            {
+                symbol_short!("multisig")
+            } else {
+                symbol_short!("single")
+            },
+        };
+        storage::set_submission_provenance(env, wallet, asset_pair, &provenance);
+        storage::set_last_global_submission_time(env, now);
+        storage::push_score_history(env, wallet, asset_pair, risk_score);
+        storage::register_pair_for_wallet(env, wallet, asset_pair);
+        storage::increment_score_count(env, wallet, asset_pair);
+        storage::increment_pair_score_count(env, asset_pair);
+        if is_new_wallet_pair {
+            storage::increment_total_wallets_scored(env);
+        }
+        storage::update_model_stats(env, risk_score.model_version, risk_score.score);
+        storage::update_historical_max_score(env, wallet, asset_pair, risk_score.score);
+        storage::update_histogram_on_write(env, previous_score, risk_score.score);
+        Self::update_welford_correlation(env, wallet, asset_pair, risk_score.score);
+        Self::refresh_aggregate_cache(env, wallet);
+        Self::assign_wallet_cluster(env, wallet);
+        Self::update_verkle_commitment(env, wallet, asset_pair, risk_score);
+
+        let score_threshold = storage::get_risk_threshold(env);
+        if risk_score.score >= score_threshold {
+            events::threshold_breached(
+                env,
+                wallet,
+                asset_pair,
+                risk_score.score,
+                score_threshold,
+            );
+        }
+        Self::update_breach_counter(env, wallet, asset_pair, risk_score.score, score_threshold);
+        Self::evaluate_risk_band(env, wallet, asset_pair, risk_score.score, score_threshold);
+        Self::emit_score_delta(env, wallet, asset_pair, previous_score, risk_score.score);
+        Self::emit_score_jump_anomaly(
+            env,
+            wallet,
+            asset_pair,
+            previous_score,
+            risk_score.score,
+            risk_score.model_version,
+        );
+        events::score_submitted(env, wallet, asset_pair, risk_score);
+        Ok(())
+    }
+
     fn write_score_with_rate_limit(
         env: &Env,
         wallet: &Address,
@@ -11457,76 +11510,7 @@ impl ScoreGateScoreContract {
             return Err(Error::InvalidScore);
         }
 
-        // Detect first-ever submission for this (wallet, asset_pair) before writing.
-        let is_new_wallet_pair = previous_score.is_none();
-        storage::set_score(env, wallet, asset_pair, risk_score);
-        storage::set_score_submission_ledger(env, wallet, asset_pair, env.ledger().sequence());
-        // #688: persist provenance snapshot so operators can audit why this submission
-        // was accepted and which policy parameters were in effect at the time.
-        {
-            let floor_policy = storage::get_score_floor_policy(env);
-            let service_set = storage::get_service_set(env);
-            let provenance = SubmissionProvenance {
-                model_version: risk_score.model_version,
-                service_threshold: storage::get_service_threshold(env),
-                signers_count: service_set.len(),
-                score_floor_enabled: floor_policy.enabled,
-                score_floor_high_water_mark: floor_policy.high_water_mark,
-                score_floor_value: floor_policy.floor_value,
-                cooldown_secs: storage::get_pair_cooldown_secs(env, asset_pair),
-                epoch_id: storage::get_current_epoch(env),
-                ledger_sequence: env.ledger().sequence(),
-                submitted_at: now,
-                validation_branch: if !service_set.is_empty()
-                    && storage::get_service_threshold(env) > 0
-                {
-                    symbol_short!("multisig")
-                } else {
-                    symbol_short!("single")
-                },
-            };
-            storage::set_submission_provenance(env, wallet, asset_pair, &provenance);
-        }
-        storage::set_last_global_submission_time(env, now);
-        storage::push_score_history(env, wallet, asset_pair, risk_score);
-        storage::register_pair_for_wallet(env, wallet, asset_pair);
-        storage::increment_score_count(env, wallet, asset_pair);
-        // Increment per-pair submission counter (Issue 1).
-        storage::increment_pair_score_count(env, asset_pair);
-        // Increment unique wallet-pair counter on first-ever submission (Issue 3).
-        if is_new_wallet_pair {
-            storage::increment_total_wallets_scored(env);
-        }
-        storage::update_model_stats(env, risk_score.model_version, risk_score.score);
-        storage::update_historical_max_score(env, wallet, asset_pair, risk_score.score);
-        storage::update_histogram_on_write(env, previous_score, risk_score.score);
-        // Welford online correlation update (issue #268): for each other pair
-        // this wallet has a live score, record (new_score, other_score) as a
-        // joint sample for the (asset_pair, other_pair) accumulator.
-        Self::update_welford_correlation(env, wallet, asset_pair, risk_score.score);
-        Self::refresh_aggregate_cache(env, wallet);
-        Self::assign_wallet_cluster(env, wallet);
-        // Update the incremental Verkle commitment over the full contract state.
-        Self::update_verkle_commitment(env, wallet, asset_pair, risk_score);
-
-        let score_threshold = storage::get_risk_threshold(env);
-        if risk_score.score >= score_threshold {
-            events::threshold_breached(env, wallet, asset_pair, risk_score.score, score_threshold);
-        }
-        Self::update_breach_counter(env, wallet, asset_pair, risk_score.score, score_threshold);
-        Self::evaluate_risk_band(env, wallet, asset_pair, risk_score.score, score_threshold);
-        Self::emit_score_delta(env, wallet, asset_pair, previous_score, risk_score.score);
-        Self::emit_score_jump_anomaly(
-            env,
-            wallet,
-            asset_pair,
-            previous_score,
-            risk_score.score,
-            risk_score.model_version,
-        );
-
-        events::score_submitted(env, wallet, asset_pair, risk_score);
-        Ok(())
+        Self::finalize_score_state(env, wallet, asset_pair, risk_score)
     }
 
     fn kth_score_for_indices(
