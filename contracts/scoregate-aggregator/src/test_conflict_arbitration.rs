@@ -1,7 +1,7 @@
 use crate::{ScoreGateAggregator, ScoreGateAggregatorClient};
 use scoregate_score::{ScoreGateScoreContract, ScoreGateScoreContractClient};
 use scoregate_test_support::generate_score_roles;
-use soroban_sdk::{testutils::Address as _, Address, Env, Symbol, Vec};
+use soroban_sdk::{testutils::{Address as _, Ledger as _}, Address, Env, Symbol, Vec};
 
 fn setup_shard(env: &Env) -> (Address, ScoreGateScoreContractClient<'_>) {
     let shard = env.register_contract(None, ScoreGateScoreContract);
