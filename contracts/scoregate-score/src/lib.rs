@@ -17,6 +17,7 @@ mod event_causality;
 mod event_stability;
 mod events;
 mod governance_actions;
+mod governance_helpers;
 #[cfg(any(test, feature = "testutils"))]
 mod invariants;
 mod parameter_governance;
@@ -3813,9 +3814,7 @@ impl ScoreGateScoreContract {
     ///
     /// `pair_weight[i]` defaults to `1` (an unweighted average) unless the
     /// admin has configured one via `set_pair_weight`. A pair with weight
-    /// `0` still contributes to `pair_count`, `max_pair_score`,
-    /// `benford_flag_count`, `ml_flag_count`, and `last_updated`, but is
-    /// excluded from the weighted-average numerator and denominator.
+    /// `0` is excluded from the aggregate score and all returned metadata.
     ///
     /// This function always recomputes from the live per-pair scores
     /// stored under `AssetPairs(wallet)` — it never reads the
@@ -4215,6 +4214,9 @@ impl ScoreGateScoreContract {
             return Err(Error::NotInitialized);
         }
         Self::require_admin_auth(&env, &admin_signers)?;
+        if !Self::asset_pair_is_bounded(&env, &asset_pair) {
+            return Err(Error::InvalidArgument);
+        }
         storage::set_pair_weight(&env, &asset_pair, weight);
         events::pair_weight_updated(&env, &asset_pair, weight);
         Ok(())
@@ -4447,6 +4449,12 @@ impl ScoreGateScoreContract {
             return Err(Error::BatchTooLarge);
         }
         Self::require_admin_auth(&env, &admin_signers)?;
+        for i in 0..entries.len() {
+            let (asset_pair, _) = entries.get(i).unwrap();
+            if !Self::asset_pair_is_bounded(&env, &asset_pair) {
+                return Err(Error::InvalidArgument);
+            }
+        }
         for i in 0..entries.len() {
             let (asset_pair, weight) = entries.get(i).unwrap();
             storage::set_pair_weight(&env, &asset_pair, weight);
@@ -10937,6 +10945,7 @@ impl ScoreGateScoreContract {
         let mut weight_sum: u64 = 0;
         let mut max_pair_score: u32 = 0;
         let mut max_pair: Symbol = pairs.get(0).unwrap();
+        let mut pair_count: u32 = 0;
         let mut benford_flag_count: u32 = 0;
         let mut ml_flag_count: u32 = 0;
         let mut last_updated: u64 = 0;
@@ -10950,10 +10959,16 @@ impl ScoreGateScoreContract {
             let pair = pairs.get(i).unwrap();
             let component = storage::get_score(env, wallet, &pair).ok_or(Error::ScoreNotFound)?;
 
-            if i == 0 || component.score > max_pair_score {
+            let weight = storage::get_pair_weight(env, &pair);
+            if weight == 0 {
+                continue;
+            }
+
+            if pair_count == 0 || component.score > max_pair_score {
                 max_pair_score = component.score;
                 max_pair = pair.clone();
             }
+            pair_count += 1;
             if component.benford_flag {
                 benford_flag_count += 1;
             }
@@ -10968,8 +10983,6 @@ impl ScoreGateScoreContract {
             let age_secs = ledger_ts.saturating_sub(component.timestamp);
             let decay_factor = Self::decay_fixed(age_secs, decay_lambda_num, decay_lambda_den);
 
-            let weight = storage::get_pair_weight(env, &pair);
-
             // Apply decay to the weight: effective_weight = weight * decay_factor / SCALE
             let decayed_weight = (weight as u64)
                 .checked_mul(decay_factor)
@@ -10977,11 +10990,11 @@ impl ScoreGateScoreContract {
                 .checked_div(constants::DECAY_FIXED_POINT_SCALE)
                 .ok_or(Error::ArithmeticOverflow)?;
 
-            let product = (decayed_weight as u32)
-                .checked_mul(component.score)
+            let product = decayed_weight
+                .checked_mul(component.score as u64)
                 .ok_or(Error::ArithmeticOverflow)?;
             weighted_sum =
-                weighted_sum.checked_add(product as u64).ok_or(Error::ArithmeticOverflow)?;
+                weighted_sum.checked_add(product).ok_or(Error::ArithmeticOverflow)?;
             weight_sum = weight_sum.checked_add(decayed_weight).ok_or(Error::ArithmeticOverflow)?;
         }
 
@@ -10996,7 +11009,7 @@ impl ScoreGateScoreContract {
 
         Ok(AggregateRiskScore {
             aggregate_score,
-            pair_count: pairs.len(),
+            pair_count,
             max_pair_score,
             max_pair,
             benford_flag_count,
@@ -11995,6 +12008,11 @@ impl ScoreGateScoreContract {
             if service_signers.len() > service_set.len() {
                 return Err(Error::TooManySigners);
             }
+            for i in 0..service_signers.len() {
+                let signer = service_signers.get(i).unwrap();
+                governance_helpers::transition_pending_to_active_if_ready(env, &signer)?;
+            }
+            governance_helpers::validate_signer_states(env, service_signers)?;
             for i in 0..service_signers.len() {
                 let signer = service_signers.get(i).unwrap();
                 if !service_set.contains(&signer) {
