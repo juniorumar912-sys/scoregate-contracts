@@ -1958,7 +1958,28 @@ impl ScoreGateScoreContract {
                         if previous_score.is_none() {
                             storage::increment_total_wallets_scored(&env);
                         }
+                        storage::update_model_stats(&env, sub.model_version, sub.score);
+                        storage::update_historical_max_score(
+                            &env,
+                            &sub.wallet,
+                            &sub.asset_pair,
+                            sub.score,
+                        );
+                        storage::update_histogram_on_write(&env, previous_score, sub.score);
+                        Self::update_welford_correlation(
+                            &env,
+                            &sub.wallet,
+                            &sub.asset_pair,
+                            sub.score,
+                        );
                         Self::refresh_aggregate_cache(&env, &sub.wallet);
+                        Self::assign_wallet_cluster(&env, &sub.wallet);
+                        Self::update_verkle_commitment(
+                            &env,
+                            &sub.wallet,
+                            &sub.asset_pair,
+                            &risk_score,
+                        );
 
                         if sub.score >= risk_threshold {
                             events::threshold_breached(
@@ -1969,6 +1990,35 @@ impl ScoreGateScoreContract {
                                 risk_threshold,
                             );
                         }
+                        Self::update_breach_counter(
+                            &env,
+                            &sub.wallet,
+                            &sub.asset_pair,
+                            sub.score,
+                            risk_threshold,
+                        );
+                        Self::evaluate_risk_band(
+                            &env,
+                            &sub.wallet,
+                            &sub.asset_pair,
+                            sub.score,
+                            risk_threshold,
+                        );
+                        Self::emit_score_delta(
+                            &env,
+                            &sub.wallet,
+                            &sub.asset_pair,
+                            previous_score,
+                            sub.score,
+                        );
+                        Self::emit_score_jump_anomaly(
+                            &env,
+                            &sub.wallet,
+                            &sub.asset_pair,
+                            previous_score,
+                            sub.score,
+                            sub.model_version,
+                        );
 
                         events::score_submitted(&env, &sub.wallet, &sub.asset_pair, &risk_score);
                         accepted = true;
@@ -11398,6 +11448,11 @@ impl ScoreGateScoreContract {
         let capacity = storage::get_burst_capacity(env);
         // Always read last_submit for use in the velocity-cap check below.
         let last_submit = storage::get_last_submit_time(env, wallet, asset_pair);
+        let previous_score = storage::peek_score(env, wallet, asset_pair).map(|s| s.score);
+
+        if Self::score_floor_blocks(env, wallet, asset_pair, risk_score.score) {
+            return Err(Error::InvalidScore);
+        }
 
         if capacity > 1 {
             // Token-bucket rate limiting (issue #269).
@@ -11432,7 +11487,6 @@ impl ScoreGateScoreContract {
             }
         }
 
-        let previous_score = storage::peek_score(env, wallet, asset_pair).map(|s| s.score);
         if let Some(prev) = previous_score {
             let cap = storage::get_score_velocity_cap(env);
             if cap.enabled {
@@ -11452,10 +11506,6 @@ impl ScoreGateScoreContract {
             }
         }
         storage::set_last_submit_time(env, wallet, asset_pair, now);
-
-        if Self::score_floor_blocks(env, wallet, asset_pair, risk_score.score) {
-            return Err(Error::InvalidScore);
-        }
 
         // Detect first-ever submission for this (wallet, asset_pair) before writing.
         let is_new_wallet_pair = previous_score.is_none();

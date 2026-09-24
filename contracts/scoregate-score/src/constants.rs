@@ -167,6 +167,7 @@ pub const HLL_DEFAULT_PRECISION: u32 = 8;
 pub const DEFAULT_QUORUM_FAILURE_WINDOW_SECS: u64 = 86_400; // 24 hours
 
 pub const MAX_TRACKED_SCORE_ENTRIES: u32 = 500;
+pub const SCORE_ENTRY_INDEX_BUCKETS: u32 = 16;
 pub const MAX_EXPIRING_ENTRIES_PER_CALL: u32 = 100;
 
 /// Maximum number of concurrently pending parameter-change proposals.

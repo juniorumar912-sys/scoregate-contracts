@@ -5,6 +5,7 @@ use crate::constants::{
     DEFAULT_CONSENSUS_THRESHOLD_K, DEFAULT_COOLDOWN_SECS, DEFAULT_JUMP_THRESHOLD,
     DEFAULT_QUORUM_FAILURE_WINDOW_SECS, DEFAULT_RISK_THRESHOLD, DEFAULT_UPGRADE_DELAY_SECS,
     EMBARGO_TTL_EXTEND_TO, EMBARGO_TTL_THRESHOLD, SCORE_TTL_EXTEND_TO, SCORE_TTL_THRESHOLD,
+    SCORE_ENTRY_INDEX_BUCKETS,
 };
 use crate::errors::Error;
 use crate::types::{
@@ -17,7 +18,7 @@ use crate::types::{
     SignerAccuracyRecord, SignerStateRecord, SubscorePayload, TokenBucket, UpgradeProposal,
     WelfordCorrState,
 };
-use soroban_sdk::{contracttype, Address, Bytes, BytesN, Env, Symbol, Vec};
+use soroban_sdk::{contracttype, Address, Bytes, BytesN, Env, Symbol, SymbolStr, TryFromVal, Vec};
 
 pub const MAX_MANDATORY_REVIEWERS: u32 = 10;
 
@@ -137,34 +138,45 @@ pub fn peek_score(env: &Env, wallet: &Address, asset_pair: &Symbol) -> Option<Ri
 /// management. O(1) storage read — the index is maintained incrementally by
 /// `track_score_entry`.
 pub fn get_score_entry_index(env: &Env) -> Vec<(Address, Symbol)> {
-    let index: Vec<(Address, Symbol)> =
-        env.storage().persistent().get(&DataKeyB::ScoreEntryIndex).unwrap_or_else(|| Vec::new(env));
-    if !index.is_empty() {
-        env.storage().persistent().extend_ttl(
-            &DataKeyB::ScoreEntryIndex,
-            SCORE_TTL_THRESHOLD,
-            SCORE_TTL_EXTEND_TO,
-        );
+    migrate_legacy_score_entry_index(env);
+
+    let mut index = Vec::new(env);
+    for bucket in 0..SCORE_ENTRY_INDEX_BUCKETS {
+        let bucket_index = get_score_entry_index_bucket(env, bucket);
+        for entry in bucket_index.iter() {
+            index.push_back(entry);
+        }
     }
     index
+}
+
+fn migrate_legacy_score_entry_index(env: &Env) {
+    if let Some(legacy) = env.storage().persistent().get::<_, Vec<(Address, Symbol)>>(
+        &DataKeyB::ScoreEntryIndex,
+    ) {
+        for entry in legacy.iter() {
+            let bucket = score_entry_index_bucket(env, &entry.0, &entry.1);
+            let mut bucket_index = get_score_entry_index_bucket(env, bucket);
+            bucket_index.push_back(entry);
+            set_score_entry_index_bucket(env, bucket, &bucket_index);
+        }
+        env.storage().persistent().remove(&DataKeyB::ScoreEntryIndex);
+    }
 }
 
 /// Removes `(wallet, asset_pair)` from the proactive rent-management index.
 /// No-op if the pair is not tracked.
 pub fn remove_score_entry(env: &Env, wallet: &Address, asset_pair: &Symbol) {
+    migrate_legacy_score_entry_index(env);
     let entry = (wallet.clone(), asset_pair.clone());
-    let mut index = get_score_entry_index(env);
+    let bucket = score_entry_index_bucket(env, wallet, asset_pair);
+    let mut index = get_score_entry_index_bucket(env, bucket);
     if let Some(pos) = index.first_index_of(&entry) {
         index.remove(pos);
         if index.is_empty() {
-            env.storage().persistent().remove(&DataKeyB::ScoreEntryIndex);
+            env.storage().persistent().remove(&DataKeyB::ScoreEntryIndexBucket(bucket));
         } else {
-            env.storage().persistent().set(&DataKeyB::ScoreEntryIndex, &index);
-            env.storage().persistent().extend_ttl(
-                &DataKeyB::ScoreEntryIndex,
-                SCORE_TTL_THRESHOLD,
-                SCORE_TTL_EXTEND_TO,
-            );
+            set_score_entry_index_bucket(env, bucket, &index);
         }
     }
 }
@@ -197,7 +209,9 @@ pub fn track_score_entry(env: &Env, wallet: &Address, asset_pair: &Symbol) {
 /// as it reaches an entry that isn't due yet: everything after it was
 /// touched more recently and can't be due either.
 fn reindex_entry_to_back(env: &Env, entry: &(Address, Symbol)) {
-    let mut index = get_score_entry_index(env);
+    migrate_legacy_score_entry_index(env);
+    let bucket = score_entry_index_bucket(env, &entry.0, &entry.1);
+    let mut index = get_score_entry_index_bucket(env, bucket);
     match index.first_index_of(entry) {
         Some(pos) => {
             index.remove(pos);
@@ -210,12 +224,35 @@ fn reindex_entry_to_back(env: &Env, entry: &(Address, Symbol)) {
             index.push_back(entry.clone());
         }
     }
-    env.storage().persistent().set(&DataKeyB::ScoreEntryIndex, &index);
-    env.storage().persistent().extend_ttl(
-        &DataKeyB::ScoreEntryIndex,
-        SCORE_TTL_THRESHOLD,
-        SCORE_TTL_EXTEND_TO,
-    );
+    set_score_entry_index_bucket(env, bucket, &index);
+}
+
+fn get_score_entry_index_bucket(env: &Env, bucket: u32) -> Vec<(Address, Symbol)> {
+    env.storage()
+        .persistent()
+        .get(&DataKeyB::ScoreEntryIndexBucket(bucket))
+        .unwrap_or_else(|| Vec::new(env))
+}
+
+fn set_score_entry_index_bucket(env: &Env, bucket: u32, index: &Vec<(Address, Symbol)>) {
+    let key = DataKeyB::ScoreEntryIndexBucket(bucket);
+    env.storage().persistent().set(&key, index);
+    env.storage().persistent().extend_ttl(&key, SCORE_TTL_THRESHOLD, SCORE_TTL_EXTEND_TO);
+}
+
+fn score_entry_index_bucket(env: &Env, wallet: &Address, asset_pair: &Symbol) -> u32 {
+    let mut hash = 0u32;
+    let mut wallet_bytes = [0u8; 56];
+    wallet.to_string().copy_into_slice(&mut wallet_bytes);
+    for byte in wallet_bytes {
+        hash = hash.wrapping_mul(31).wrapping_add(byte as u32);
+    }
+    if let Ok(pair) = soroban_sdk::SymbolStr::try_from_val(env, &asset_pair.to_symbol_val()) {
+        for byte in pair.as_ref() {
+            hash = hash.wrapping_mul(31).wrapping_add(*byte as u32);
+        }
+    }
+    hash % SCORE_ENTRY_INDEX_BUCKETS
 }
 
 fn touch_score_entry(env: &Env, wallet: &Address, asset_pair: &Symbol) {
