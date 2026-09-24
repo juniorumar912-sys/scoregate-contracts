@@ -2,7 +2,7 @@
 
 use soroban_sdk::{testutils::Address as _, Address, Env, Vec};
 
-use crate::{ScoreGateScoreContract, ScoreGateScoreContractClient};
+use crate::{constants, Error, ScoreGateScoreContract, ScoreGateScoreContractClient};
 
 fn setup<'a>() -> (Env, ScoreGateScoreContractClient<'a>) {
     let env = Env::default();
@@ -45,5 +45,17 @@ fn test_get_gate_callers_empty_after_clear() {
     client.set_gate_callers(&Vec::new(&env), &callers);
     assert_eq!(client.get_gate_callers().len(), 1);
     client.set_gate_callers(&Vec::new(&env), &Vec::new(&env));
+    assert!(client.get_gate_callers().is_empty());
+}
+
+#[test]
+fn test_set_gate_callers_rejects_more_than_maximum() {
+    let (env, client) = setup();
+    let mut callers = Vec::new(&env);
+    for _ in 0..=constants::MAX_GATE_CALLERS {
+        callers.push_back(Address::generate(&env));
+    }
+
+    assert_eq!(client.try_set_gate_callers(&Vec::new(&env), &callers), Err(Ok(Error::InvalidArgument)));
     assert!(client.get_gate_callers().is_empty());
 }

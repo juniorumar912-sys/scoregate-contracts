@@ -315,7 +315,7 @@ fn test_batch_submission_velocity_cap() {
         confidence: 90,
         model_version: 1,
     });
-    client.submit_scores_batch(&batch1);
+    client.submit_scores_batch(&Vec::new(&env), &batch1);
 
     // Advance 1 hour
     env.ledger().with_mut(|l| l.timestamp += 3600);
@@ -343,7 +343,7 @@ fn test_batch_submission_velocity_cap() {
         model_version: 1,
     });
 
-    let result = client.submit_scores_batch(&batch2);
+    let result = client.submit_scores_batch(&Vec::new(&env), &batch2);
 
     assert_eq!(result.accepted_count, 1);
     assert_eq!(result.rejected_count, 1);
