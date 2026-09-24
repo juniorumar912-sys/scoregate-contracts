@@ -289,10 +289,10 @@ fn verify_membership_fails_for_stale_commitment() {
         "old proof must not verify against new commitment"
     );
 
-    // Old proof against old commitment still verifies (snapshot integrity).
+    // Old roots are no longer accepted after the state advances.
     assert!(
-        client.verify_membership(&old_commitment, &wallet, &pair, &42, &old_timestamp, &old_proof),
-        "old proof must still verify against the old commitment snapshot"
+        !client.verify_membership(&old_commitment, &wallet, &pair, &42, &old_timestamp, &old_proof),
+        "old proof must not verify against an inactive commitment root"
     );
 }
 

@@ -220,12 +220,8 @@ fn reindex_entry_to_back(env: &Env, entry: &(Address, Symbol)) {
 
 fn touch_score_entry(env: &Env, wallet: &Address, asset_pair: &Symbol) {
     let key = DataKeyB::ScoreEntryLastTouchedLedger(wallet.clone(), asset_pair.clone());
-    let had_touch = env.storage().persistent().has(&key);
     env.storage().persistent().set(&key, &env.ledger().sequence());
-    // Lazy TTL on the touch marker: skip extend while the entry is still tracked.
-    if !had_touch {
-        extend_persistent_ttl(env, &key);
-    }
+    extend_persistent_ttl(env, &key);
 }
 
 /// Extends a persistent-storage entry's TTL using the standard score-entry
@@ -301,7 +297,7 @@ pub fn get_expiring_entries(env: &Env, max_entries: u32) -> Vec<(Address, Symbol
             // Front-to-back the queue is sorted by descending elapsed time,
             // so the first not-yet-due entry means nothing after it is due
             // either — safe to stop here.
-            _ => break,
+            _ => continue,
         }
     }
     result
