@@ -204,7 +204,7 @@ fn test_clean_admin_rotation_no_pending_data() {
     assert_eq!(client.get_admin(), new_admin);
 
     // New admin can rotate the service address.
-    client.set_service(&new_service);
+    client.set_service(&Vec::new(&env), &new_service);
     assert_eq!(client.get_service(), new_service);
 
     // Original service is no longer registered.
@@ -267,6 +267,6 @@ fn test_double_rotation_second_admin_can_act() {
 
     // admin3 can manage the service address.
     let new_svc = Address::generate(&env);
-    client.set_service(&new_svc);
+    client.set_service(&Vec::new(&env), &new_svc);
     assert_eq!(client.get_service(), new_svc);
 }
