@@ -838,3 +838,6 @@ Contributions are welcome. ScoreGate is an open-source public good built for the
 
 <!-- handsoff-issue-83 -->
 - #83: #33 — Architecture Review Ownership Administration Bypasses Multisig Authorization
+
+<!-- handsoff-issue-84 -->
+- #84: #34 — Missing Upper Bound Validation on Momentum Alert Threshold
