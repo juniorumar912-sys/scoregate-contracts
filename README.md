@@ -838,3 +838,6 @@ Contributions are welcome. ScoreGate is an open-source public good built for the
 
 <!-- handsoff-issue-66 -->
 - #66: #16 — Missing Consensus Score Event Emission in submit_consensus_score
+
+<!-- handsoff-issue-67 -->
+- #67: #17 — Revoke All Embargoes Panics in Single-Admin Mode
