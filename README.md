@@ -832,3 +832,6 @@ Contributions are welcome. ScoreGate is an open-source public good built for the
 
 <!-- handsoff-issue-81 -->
 - #81: #31 — Asset Pair Correlation Administration Bypasses Multisig Governance
+
+<!-- handsoff-issue-82 -->
+- #82: #32 — Consensus Configuration Entry Points Bypass Multisig Authorization
