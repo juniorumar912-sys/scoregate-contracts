@@ -838,3 +838,6 @@ Contributions are welcome. ScoreGate is an open-source public good built for the
 
 <!-- handsoff-issue-62 -->
 - #62: #12 — Consensus Direct Submission Bypasses Minimum Quorum Threshold k
+
+<!-- handsoff-issue-63 -->
+- #63: #13 — Premature Deletion of Commitments in reveal_consensus Verification Loop
