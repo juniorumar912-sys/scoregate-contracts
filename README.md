@@ -835,3 +835,6 @@ Contributions are welcome. ScoreGate is an open-source public good built for the
 
 <!-- handsoff-issue-82 -->
 - #82: #32 — Consensus Configuration Entry Points Bypass Multisig Authorization
+
+<!-- handsoff-issue-83 -->
+- #83: #33 — Architecture Review Ownership Administration Bypasses Multisig Authorization
