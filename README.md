@@ -835,3 +835,6 @@ Contributions are welcome. ScoreGate is an open-source public good built for the
 
 <!-- handsoff-issue-65 -->
 - #65: #15 — Zero-IQR Outlier Filter in Consensus Rejects All Non-Identical Observations
+
+<!-- handsoff-issue-66 -->
+- #66: #16 — Missing Consensus Score Event Emission in submit_consensus_score
