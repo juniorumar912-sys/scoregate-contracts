@@ -832,3 +832,6 @@ Contributions are welcome. ScoreGate is an open-source public good built for the
 
 <!-- handsoff-issue-60 -->
 - #60: #10 — HyperLogLog Cardinality Sketch Is Never Updated for Batch or Consensus Ingestion
+
+<!-- handsoff-issue-61 -->
+- #61: #11 — Potential Host Panic in hll_hash_wallet Due to Fixed 56-Byte Slice Copy of Variable-Length Address Strings
