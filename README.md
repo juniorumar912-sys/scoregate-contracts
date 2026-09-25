@@ -832,3 +832,6 @@ Contributions are welcome. ScoreGate is an open-source public good built for the
 
 <!-- handsoff-issue-64 -->
 - #64: #14 — Consensus Commit-Reveal Mechanism Ignores Configured Reveal Window Expiration
+
+<!-- handsoff-issue-65 -->
+- #65: #15 — Zero-IQR Outlier Filter in Consensus Rejects All Non-Identical Observations
