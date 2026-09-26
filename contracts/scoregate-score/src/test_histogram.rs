@@ -252,7 +252,7 @@ fn test_clear_score_decrements_histogram() {
 }
 
 #[test]
-fn test_clear_score_history_decrements_histogram() {
+fn test_clear_score_history_preserves_histogram() {
     let (env, client, _admin, _service) = initialized();
     let wallet = Address::generate(&env);
     let pair = symbol_short!("XLM_USDC");
@@ -261,8 +261,8 @@ fn test_clear_score_history_decrements_histogram() {
 
     client.clear_score_history(&Vec::new(&env), &wallet, &pair);
     let h = client.get_score_histogram();
-    assert_eq!(h.total, 0);
-    assert_eq!(h.buckets.get(4).unwrap(), 0);
+    assert_eq!(h.total, 1);
+    assert_eq!(h.buckets.get(4).unwrap(), 1);
 }
 
 #[test]

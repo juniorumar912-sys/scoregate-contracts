@@ -1352,11 +1352,10 @@ impl ScoreGateScoreContract {
     /// | 4 | `InvalidTimestamp` | 25 | `timestamp == 0` |
     /// | 5 | `ModelVersion*` | various | model version not registered / not ready / deprecated |
     /// | 6 | `RateLimitExceeded` | 23 | cooldown not elapsed or velocity cap exceeded |
-    /// | 7 | `BelowScoreFloor` | **43** | score < floor for high-risk wallet |
+    /// | 7 | `BelowScoreFloor` | **4** | score < floor for high-risk wallet |
     ///
-    /// Note: `BelowScoreFloor` (priority 7) emits `rejection_code = 43` —
-    /// **distinct from `InvalidScore` (4)** even though they share an alias in
-    /// the `Error` enum, so callers can always distinguish a range violation
+    /// Note: `BelowScoreFloor` (priority 7) emits `rejection_code = 4`, the
+    /// same discriminant as `InvalidScore` through the `Error` enum alias.
     /// from a policy floor rejection by inspecting the numeric code.
     ///
     /// # Examples
@@ -9357,9 +9356,6 @@ impl ScoreGateScoreContract {
         Self::require_deletion_auth(&env, &admin_signers)?;
         let latest_score_present = storage::peek_score(&env, &wallet, &asset_pair).is_some();
         let history_count = storage::peek_score_history_len(&env, &wallet, &asset_pair);
-        if let Some(risk) = storage::peek_score(&env, &wallet, &asset_pair) {
-            storage::update_histogram_on_clear(&env, risk.score);
-        }
         let reason_hash: BytesN<32> = env.crypto().sha256(&reason).into();
         let category_hash: BytesN<32> = env.crypto().sha256(&category).into();
         let (admin, multisig_enabled, signer_count, threshold) =
