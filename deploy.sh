@@ -181,6 +181,8 @@ load_manifest() {
   [ -n "$NETWORK_ALIAS" ] || die "manifest missing NETWORK_ALIAS: $MANIFEST_PATH"
   [ -n "$NETWORK_PASSPHRASE" ] || die "manifest missing NETWORK_PASSPHRASE: $MANIFEST_PATH"
   [ -n "$RPC_URL" ] || die "manifest missing RPC_URL: $MANIFEST_PATH"
+  manifest_is_valid_network_passphrase "$NETWORK_PASSPHRASE" || die "manifest NETWORK_PASSPHRASE must be a non-empty single-line value: $MANIFEST_PATH"
+  manifest_is_valid_rpc_url "$RPC_URL" || die "manifest RPC_URL must be an HTTPS URL: $MANIFEST_PATH"
   [ -n "$REQUIRE_MAINNET_CONFIRMATION" ] || die "manifest missing REQUIRE_MAINNET_CONFIRMATION: $MANIFEST_PATH"
   [ -n "$EXPECTED_STELLAR_CLI_VERSION" ] || die "manifest missing EXPECTED_STELLAR_CLI_VERSION: $MANIFEST_PATH"
 
