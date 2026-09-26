@@ -218,7 +218,7 @@ fn test_rate_limit_override_allows_exactly_one_submission() {
         confidence: 90,
         model_version: 1,
     });
-    let r1 = client.submit_scores_batch(&batch);
+    let r1 = client.submit_scores_batch(&Vec::new(&env), &batch);
     assert_eq!(r1.accepted_count, 1, "first submission after override must succeed");
 
     // Immediate second submission (within cooldown) must be rejected.
@@ -234,7 +234,7 @@ fn test_rate_limit_override_allows_exactly_one_submission() {
         confidence: 90,
         model_version: 1,
     });
-    let r2 = client.submit_scores_batch(&batch2);
+    let r2 = client.submit_scores_batch(&Vec::new(&env), &batch2);
     assert_eq!(
         r2.rejected_count, 1,
         "second submission within cooldown must be rejected even after override"

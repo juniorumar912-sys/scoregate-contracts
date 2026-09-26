@@ -103,6 +103,12 @@ pub struct HostVersionResult {
 pub struct ExecutionMetadata {
     /// Total gas consumed
     pub gas_consumed: Option<u64>,
+    /// Soroban CPU instructions consumed
+    #[serde(default)]
+    pub cpu_instructions: Option<u64>,
+    /// Soroban RAM bytes consumed
+    #[serde(default)]
+    pub memory_bytes: Option<u64>,
     /// Execution time in milliseconds
     pub execution_time_ms: Option<u64>,
     /// Peak memory usage in bytes
@@ -208,6 +214,29 @@ pub fn compare_results(
         }
     }
 
+    for (label, value_a, value_b) in [
+        (
+            "CPU instructions",
+            result_a.metadata.cpu_instructions,
+            result_b.metadata.cpu_instructions,
+        ),
+        (
+            "memory bytes",
+            result_a.metadata.memory_bytes,
+            result_b.metadata.memory_bytes,
+        ),
+    ] {
+        if let (Some(value_a), Some(value_b)) = (value_a, value_b) {
+            if value_a != value_b {
+                divergences.push(DeterminismError::ExecutionDivergence {
+                    host_version_a: result_a.host_version.clone(),
+                    host_version_b: result_b.host_version.clone(),
+                    reason: format!("{label} differ: {value_a} vs {value_b}"),
+                });
+            }
+        }
+    }
+
     // Compare state snapshots
     let all_keys: std::collections::HashSet<_> = result_a
         .state_snapshot
@@ -287,6 +316,8 @@ mod tests {
             error_code: None,
             metadata: ExecutionMetadata {
                 gas_consumed: Some(1000),
+                cpu_instructions: None,
+                memory_bytes: None,
                 execution_time_ms: Some(100),
                 peak_memory_bytes: Some(1024),
                 custom: HashMap::new(),

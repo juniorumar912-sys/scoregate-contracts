@@ -86,8 +86,8 @@ Admin-only. Sets the maximum number of entries retained in the per-wallet / per-
 ### `get_history_max_depth() -> u32`
 Read-only. Returns the current ring-buffer depth. Defaults to `10` until the admin sets one explicitly.
 
-### `set_service(new_service: Address)`
-Rotates the authorised off-chain scoring service address. Admin only.
+### `set_service(admin_signers: Vec<Address>, new_service: Address)`
+Rotates the authorised off-chain scoring service address. Admin only; in multisig mode, `admin_signers` must satisfy the configured admin threshold.
 
 ### `get_admin() -> Address` / `get_service() -> Address`
 Read-only lookups of the current admin and authorised scoring service addresses.
@@ -746,7 +746,7 @@ pub struct RiskScore {
 | `submit_score(signers, wallet, asset_pair, score, benford_flag, ml_flag, timestamp, confidence, model_version, attestation_input)` | ScoreGate service account or M-of-N signers | `service.require_auth()` or signer threshold | **`api`** — writes scores produced by `core` |
 | `get_score(wallet, asset_pair)` | anyone | none (read-only) | **`api`**, **`dashboard`** (via api), and any third-party Soroban contract |
 | `get_score_count(wallet, asset_pair)` | anyone | none (read-only) | **`api`** — detects newly monitored vs. long-history wallets |
-| `set_service(new_service)` | admin | `admin.require_auth()` | ops/admin tooling for key rotation |
+| `set_service(admin_signers, new_service)` | admin | configured admin threshold | ops/admin tooling for key rotation |
 | `get_admin()` / `get_service()` | anyone | none (read-only) | ops tooling, `api` health checks |
 | `query_risk_gate(wallet, pair, threshold)` | anyone | none (read-only, infallible) | any Soroban contract composing with ScoreGate |
 | `query_risk_gate_with_confidence(wallet, pair, threshold, min_confidence)` | anyone | none (read-only, infallible) | contracts needing confidence-gated checks |
@@ -830,14 +830,14 @@ Contributions are welcome. ScoreGate is an open-source public good built for the
 
 ## Handsoff notes
 
-<!-- handsoff-issue-60 -->
-- #60: #10 — HyperLogLog Cardinality Sketch Is Never Updated for Batch or Consensus Ingestion
+<!-- handsoff-issue-64 -->
+- #64: #14 — Consensus Commit-Reveal Mechanism Ignores Configured Reveal Window Expiration
 
-<!-- handsoff-issue-61 -->
-- #61: #11 — Potential Host Panic in hll_hash_wallet Due to Fixed 56-Byte Slice Copy of Variable-Length Address Strings
+<!-- handsoff-issue-65 -->
+- #65: #15 — Zero-IQR Outlier Filter in Consensus Rejects All Non-Identical Observations
 
-<!-- handsoff-issue-62 -->
-- #62: #12 — Consensus Direct Submission Bypasses Minimum Quorum Threshold k
+<!-- handsoff-issue-66 -->
+- #66: #16 — Missing Consensus Score Event Emission in submit_consensus_score
 
-<!-- handsoff-issue-63 -->
-- #63: #13 — Premature Deletion of Commitments in reveal_consensus Verification Loop
+<!-- handsoff-issue-67 -->
+- #67: #17 — Revoke All Embargoes Panics in Single-Admin Mode

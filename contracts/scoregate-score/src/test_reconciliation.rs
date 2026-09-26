@@ -368,6 +368,6 @@ fn test_freeze_blocks_batch_submit() {
 
     client.freeze_contract(&Vec::new(&env));
 
-    let result = client.try_submit_scores_batch(&Vec::new(&env));
+    let result = client.try_submit_scores_batch(&Vec::new(&env), &Vec::new(&env));
     assert_eq!(result, Err(Ok(Error::EmptyBatch)));
 }

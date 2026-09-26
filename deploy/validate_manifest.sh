@@ -19,6 +19,14 @@ manifest_is_valid_stellar_address() {
   [[ "$1" =~ ^G[A-Z2-7]{55}$ ]]
 }
 
+manifest_is_valid_rpc_url() {
+  [[ "$1" =~ ^https://[^[:space:]]+$ ]]
+}
+
+manifest_is_valid_network_passphrase() {
+  [ -n "$1" ] && [[ "$1" != *$'\n'* ]]
+}
+
 # validate_manifest <network> <manifest-path> <admin-identity> <service-address>
 #
 # Prints one actionable error per violation to stderr and returns 1 if any
@@ -84,6 +92,18 @@ validate_manifest() {
   elif [ "$network" = "mainnet" ] && [ "$admin_identity" = "deployer" ]; then
     echo "ERROR: refusing to deploy to mainnet using the default 'deployer' identity." \
       "Pass an explicit admin identity for mainnet deployments." >&2
+    errors=$((errors + 1))
+  fi
+
+  local rpc_url network_passphrase
+  rpc_url=$(jq -r '.RPC_URL // empty' <<<"$section")
+  network_passphrase=$(jq -r '.NETWORK_PASSPHRASE // empty' <<<"$section")
+  if ! manifest_is_valid_rpc_url "$rpc_url"; then
+    echo "ERROR: manifest[$network].RPC_URL must be a non-empty HTTPS URL." >&2
+    errors=$((errors + 1))
+  fi
+  if ! manifest_is_valid_network_passphrase "$network_passphrase"; then
+    echo "ERROR: manifest[$network].NETWORK_PASSPHRASE is required." >&2
     errors=$((errors + 1))
   fi
 
