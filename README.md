@@ -827,3 +827,17 @@ Contributions are welcome. ScoreGate is an open-source public good built for the
 - Stellar Development Foundation (2024) *Soroban Smart Contract Documentation*. Available at: https://soroban.stellar.org/docs
 - [`docs/host-version-support-policy.md`](docs/host-version-support-policy.md) — supported Rust/Soroban build boundary and CI coverage
 - [`docs/network-matrix.md`](docs/network-matrix.md) — supported deployment profiles and failure modes
+
+## Handsoff notes
+
+<!-- handsoff-issue-64 -->
+- #64: #14 — Consensus Commit-Reveal Mechanism Ignores Configured Reveal Window Expiration
+
+<!-- handsoff-issue-65 -->
+- #65: #15 — Zero-IQR Outlier Filter in Consensus Rejects All Non-Identical Observations
+
+<!-- handsoff-issue-66 -->
+- #66: #16 — Missing Consensus Score Event Emission in submit_consensus_score
+
+<!-- handsoff-issue-67 -->
+- #67: #17 — Revoke All Embargoes Panics in Single-Admin Mode
