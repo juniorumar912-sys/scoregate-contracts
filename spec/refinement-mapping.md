@@ -122,7 +122,7 @@ storage — matching the spec's `REVEAL_WINDOW` eviction model.
 | `FLOOR_VALUE` | `DEFAULT_SCORE_FLOOR_MIN` (20) | `constants.rs` | Score floor minimum; co-configured with HWM. |
 | `RISK_THRESHOLD` | `DEFAULT_RISK_THRESHOLD` (75) | `constants.rs` | Default gate threshold; integrators can pass a different `gate_threshold`. |
 | `MIN_CAPACITY` | `1` | spec model config | Maps to the production default burst capacity `1` (the `get_burst_capacity()` default) — the legacy flat-cooldown mode with no burst allowance. |
-| `MAX_CAPACITY` | `3` | spec model config | TLC exploration bound only; there is no corresponding hard Rust ceiling — `set_burst_capacity` stores the admin-configured value as-is. |
+| `MAX_CAPACITY` | `3` | `constants::MAX_BURST_CAPACITY` | Production hard ceiling enforced by `set_burst_capacity`. |
 | `CONSENSUS_K` | `DEFAULT_CONSENSUS_THRESHOLD_K` (2) | `constants.rs` | Minimum agreeing reveals; admin-configurable via `set_consensus_config`. |
 | `CONSENSUS_EPSILON` | `DEFAULT_CONSENSUS_EPSILON` (5) | `constants.rs` | Max pairwise score distance for agreement; spec uses 10 to cover failing (0 vs 80) and passing (50/50) cases with `Scores = {0, 50, 80}`. |
 | `REVEAL_WINDOW` | `DataKeyB::RevealWindowSecs` (default 3600) via `set_reveal_window(secs)` / temporary entry TTL | `storage.rs` | The reveal window in the spec corresponds to `get_reveal_window_secs()` (default 1 hour, admin-configurable via `set_reveal_window(secs)` — distinct from the dispute-bond `DEFAULT_DISPUTE_REVEAL_WINDOW_SECS`). It drives the TTL of the temporary storage entry created by `commit_consensus`; when the TTL expires the entry is evicted and `ExpireStaleCommit` fires. |
@@ -163,7 +163,7 @@ counterpart, tested in the `contracts/scoregate-score/src/` test modules.
 | `TokensNonNegative` (`INV-TB-2`) | `write_score_with_rate_limit(...)` only proceeds when `refilled > 0`; stores `refilled - 1` | `test_rate_limit.rs` |
 | `CapacityReductionCapsNextBurst` (`INV-TB-3`) | Same as INV-TB-1 | `test_cooldown.rs` |
 | `RefillAnchorNotInFuture` (`INV-TB-4`) | `saturating_sub` prevents underflow if clock skews | `test_rate_limit.rs` |
-| `CapacityWithinBounds` (`INV-TB-5`) | `get_burst_capacity()` defaults to `1` (legacy flat-cooldown); `set_burst_capacity` is admin-only and stores the value as-is — the spec's `MIN_CAPACITY..MAX_CAPACITY` are TLC exploration bounds, not enforced Rust limits | `test_rate_limit.rs` |
+| `CapacityWithinBounds` (`INV-TB-5`) | `get_burst_capacity()` defaults to `1` (legacy flat-cooldown); `set_burst_capacity` is admin-only and enforces `MIN_CAPACITY..MAX_CAPACITY` | `test_rate_limit.rs` |
 | `FinalScoreRequiresKReveals` (`INV-CR-1`) | `submit_consensus_score(...)` counts agreeing reveals; rejects if `< CONSENSUS_K` (same check inside `reveal_consensus`) | `test_consensus.rs` |
 | `NoRevealWithoutCommit` (`INV-CR-2`) | `reveal_consensus` checks `env.storage().temporary().has(&commit_key)` | `test_consensus.rs` |
 | `RevealOnlyWithinWindow` (`INV-CR-3`) | Temporary entry TTL eviction enforces the window | `test_consensus.rs` |

@@ -258,7 +258,7 @@ fn test_set_service_advances_chain_head() {
     let head_before = client.get_governance_chain_head();
     let new_service = Address::generate(&env);
     #[allow(deprecated)]
-    client.set_service(&new_service);
+    client.set_service(&Vec::new(&env), &new_service);
     let head_after = client.get_governance_chain_head();
     assert_ne!(head_before, head_after, "chain head must change after set_service");
 }
