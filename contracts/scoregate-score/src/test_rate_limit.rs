@@ -11,7 +11,9 @@ use soroban_sdk::{
 };
 
 use crate::{
-    constants::{DEFAULT_COOLDOWN_SECS, MAX_COOLDOWN_SECS, MIN_COOLDOWN_SECS},
+    constants::{
+        DEFAULT_COOLDOWN_SECS, MAX_BURST_CAPACITY, MAX_COOLDOWN_SECS, MIN_COOLDOWN_SECS,
+    },
     BatchResult, Error, ScoreGateScoreContract, ScoreGateScoreContractClient, ScoreSubmission,
 };
 
@@ -415,6 +417,28 @@ fn test_set_cooldown_boundary_values_accepted() {
     env.ledger().with_mut(|l| l.timestamp += 86_400);
     client.apply_param_change(&key);
     assert_eq!(client.get_cooldown(), MAX_COOLDOWN_SECS);
+}
+
+#[test]
+fn test_set_burst_capacity_rejects_values_outside_bounds() {
+    let (env, client, _admin) = setup();
+
+    assert_eq!(
+        client.try_set_burst_capacity(&0),
+        Err(Ok(Error::InvalidArgument))
+    );
+    assert_eq!(
+        client.try_set_burst_capacity(&(MAX_BURST_CAPACITY + 1)),
+        Err(Ok(Error::InvalidArgument))
+    );
+}
+
+#[test]
+fn test_set_burst_capacity_accepts_maximum() {
+    let (_env, client, _admin) = setup();
+
+    client.set_burst_capacity(&MAX_BURST_CAPACITY);
+    assert_eq!(client.get_burst_capacity(), MAX_BURST_CAPACITY);
 }
 
 // ── Independence across pairs and wallets ───────────────────────────────────────
