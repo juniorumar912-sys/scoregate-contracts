@@ -1008,6 +1008,7 @@ impl ScoreGateScoreContract {
     ) -> Result<(), Error> {
         Self::ensure_active(&env)?;
         model.require_auth();
+        Self::ensure_asset_pair_bounded(&env, &asset_pair)?;
 
         storage::set_consensus_commitment(&env, &model, &wallet, &asset_pair, &commitment);
         Ok(())
@@ -4509,10 +4510,6 @@ impl ScoreGateScoreContract {
         }
         Self::require_admin_auth(&env, &admin_signers)?;
 
-        if storage::get_require_multisig_for_destructive(&env) && admin_signers.len() < 2 {
-            return Err(Error::InsufficientAdminSigners);
-        }
-
         for i in 0..pairs.len() {
             let pair = pairs.get(i).unwrap();
             if !storage::has_pair_weight(&env, &pair) {
@@ -5757,11 +5754,15 @@ impl ScoreGateScoreContract {
     /// major release.  New integrations should use the multisig functions.
     #[deprecated(note = "Use add_service_signer / set_service_threshold for M-of-N multisig. \
                 This single-service path will be removed in a future release.")]
-    pub fn set_service(env: Env, new_service: Address) -> Result<(), Error> {
+    pub fn set_service(
+        env: Env,
+        admin_signers: Vec<Address>,
+        new_service: Address,
+    ) -> Result<(), Error> {
         if !storage::has_admin(&env) {
             return Err(Error::NotInitialized);
         }
-        storage::get_admin(&env).require_auth();
+        Self::require_admin_auth(&env, &admin_signers)?;
         storage::set_service(&env, &new_service);
         events::service_updated(&env, &new_service);
         // #299: append to governance audit chain — stable discriminant from governance_actions registry
@@ -9688,9 +9689,8 @@ impl ScoreGateScoreContract {
             return Err(Error::NotInitialized);
         }
         Self::require_admin_auth(&env, &admin_signers)?;
-        let admin = storage::get_admin(&env);
         storage::clear_historical_max_score(&env, &wallet, &asset_pair);
-        events::score_floor_overridden(&env, &admin, &wallet, &asset_pair);
+        events::score_floor_overridden(&env, &admin_signers, &wallet, &asset_pair);
         Ok(())
     }
 
@@ -11930,6 +11930,11 @@ impl ScoreGateScoreContract {
             }
             for i in 0..admin_signers.len() {
                 let signer = admin_signers.get(i).unwrap();
+                for j in 0..i {
+                    if admin_signers.get(j).unwrap() == signer {
+                        return Err(Error::Unauthorized);
+                    }
+                }
                 if !admin_set.contains(&signer) {
                     return Err(Error::AdminSignerNotInSet);
                 }
