@@ -652,11 +652,37 @@ fn test_detect_split_brain_byzantine_config_mismatch() {
     let pair = symbol_short!("XLM_USDC");
     let report = client.detect_split_brain(&wallet, &pair);
 
-    assert_eq!(report.status, SplitBrainStatus::QuorumLost);
+    assert_eq!(report.status, SplitBrainStatus::SplitBrain);
     assert_eq!(report.available_count, 2);
     assert_eq!(report.quorum_count, 1);
     assert_eq!(report.required_quorum, 2);
     assert_eq!(report.mismatch_count, 1);
+}
+
+#[test]
+fn test_detect_split_brain_even_partition_takes_precedence_over_quorum_loss() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let client = init_aggregator(&env);
+    let (shard_a, shard_a_client) = setup_score_shard(&env);
+    let (shard_b, shard_b_client) = setup_score_shard(&env);
+    let (shard_c, _) = setup_score_shard(&env);
+    let (shard_d, _) = setup_score_shard(&env);
+    shard_a_client.set_decay_rate(&2, &1000);
+    shard_b_client.set_decay_rate(&2, &1000);
+    client.add_shard(&shard_a);
+    client.add_shard(&shard_b);
+    client.add_shard(&shard_c);
+    client.add_shard(&shard_d);
+
+    let wallet = Address::generate(&env);
+    let pair = symbol_short!("XLM_USDC");
+    let report = client.detect_split_brain(&wallet, &pair);
+
+    assert_eq!(report.status, SplitBrainStatus::SplitBrain);
+    assert_eq!(report.quorum_count, 2);
+    assert_eq!(report.required_quorum, 3);
+    assert_eq!(report.mismatch_count, 2);
 }
 
 #[test]
