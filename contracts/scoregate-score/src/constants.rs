@@ -57,6 +57,8 @@ pub const MAX_WALLET_PAIRS: u32 = 20;
 pub const DEFAULT_COOLDOWN_SECS: u64 = 3_600;
 pub const MIN_COOLDOWN_SECS: u64 = 60;
 pub const MAX_COOLDOWN_SECS: u64 = 86_400;
+/// Maximum number of tokens allowed in a rate-limit burst bucket.
+pub const MAX_BURST_CAPACITY: u32 = 3;
 pub const MIN_UPGRADE_DELAY_SECS: u64 = 172_800;
 pub const MAX_UPGRADE_DELAY_SECS: u64 = 1_209_600;
 pub const DEFAULT_UPGRADE_DELAY_SECS: u64 = 172_800;

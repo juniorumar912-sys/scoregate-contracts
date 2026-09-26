@@ -367,7 +367,7 @@ fn test_submit_scores_batch_unaffected_by_embargo() {
         confidence: 80,
         model_version: 1,
     });
-    let result = client.submit_scores_batch(&entries);
+    let result = client.submit_scores_batch(&Vec::new(&env), &entries);
     assert_eq!(result.accepted_count, 1);
 }
 

@@ -230,7 +230,7 @@ fn test_batch_mixed_jumps() {
         model_version: 2,
     });
 
-    let result = c2.submit_scores_batch(&batch);
+    let result = c2.submit_scores_batch(&Vec::new(&env), &batch);
     assert_eq!(result.accepted_count, 3);
     assert_eq!(result.rejected_count, 0);
 

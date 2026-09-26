@@ -281,7 +281,7 @@ fn chaos_pause_unpause_submit_1000_sequences() {
                             model_version: 1,
                         });
                     }
-                    match client.try_submit_scores_batch(&batch) {
+                    match client.try_submit_scores_batch(&Vec::new(&env), &batch) {
                         Ok(result) => {
                             for idx in 0..result.results.len() {
                                 let entry_res = result.results.get(idx).unwrap();

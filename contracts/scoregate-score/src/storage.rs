@@ -257,12 +257,8 @@ fn score_entry_index_bucket(env: &Env, wallet: &Address, asset_pair: &Symbol) ->
 
 fn touch_score_entry(env: &Env, wallet: &Address, asset_pair: &Symbol) {
     let key = DataKeyB::ScoreEntryLastTouchedLedger(wallet.clone(), asset_pair.clone());
-    let had_touch = env.storage().persistent().has(&key);
     env.storage().persistent().set(&key, &env.ledger().sequence());
-    // Lazy TTL on the touch marker: skip extend while the entry is still tracked.
-    if !had_touch {
-        extend_persistent_ttl(env, &key);
-    }
+    extend_persistent_ttl(env, &key);
 }
 
 /// Extends a persistent-storage entry's TTL using the standard score-entry
@@ -338,7 +334,7 @@ pub fn get_expiring_entries(env: &Env, max_entries: u32) -> Vec<(Address, Symbol
             // Front-to-back the queue is sorted by descending elapsed time,
             // so the first not-yet-due entry means nothing after it is due
             // either — safe to stop here.
-            _ => break,
+            _ => continue,
         }
     }
     result
@@ -398,6 +394,34 @@ pub fn extend_score_entry_ttl(env: &Env, wallet: &Address, asset_pair: &Symbol) 
     }
     let key = DataKey::Score(wallet.clone(), asset_pair.clone());
     env.storage().persistent().extend_ttl(&key, SCORE_TTL_THRESHOLD, SCORE_TTL_EXTEND_TO);
+    let history_key = DataKey::ScoreHistory(wallet.clone(), asset_pair.clone());
+    env.storage()
+        .persistent()
+        .extend_ttl(&history_key, SCORE_TTL_THRESHOLD, SCORE_TTL_EXTEND_TO);
+    let last_submit_key = DataKey::LastSubmitTime(wallet.clone(), asset_pair.clone());
+    env.storage().persistent().extend_ttl(
+        &last_submit_key,
+        SCORE_TTL_THRESHOLD,
+        SCORE_TTL_EXTEND_TO,
+    );
+    let historical_max_key = DataKey::HistoricalMaxScore(wallet.clone(), asset_pair.clone());
+    env.storage().persistent().extend_ttl(
+        &historical_max_key,
+        SCORE_TTL_THRESHOLD,
+        SCORE_TTL_EXTEND_TO,
+    );
+    let score_count_key = DataKey::ScoreCount(wallet.clone(), asset_pair.clone());
+    env.storage().persistent().extend_ttl(
+        &score_count_key,
+        SCORE_TTL_THRESHOLD,
+        SCORE_TTL_EXTEND_TO,
+    );
+    let breach_count_key = DataKeyC::BreachCount(wallet.clone(), asset_pair.clone());
+    env.storage().persistent().extend_ttl(
+        &breach_count_key,
+        SCORE_TTL_THRESHOLD,
+        SCORE_TTL_EXTEND_TO,
+    );
     reindex_entry_to_back(env, &(wallet.clone(), asset_pair.clone()));
     touch_score_entry(env, wallet, asset_pair);
     true
@@ -1188,6 +1212,24 @@ pub fn clear_score_history(env: &Env, wallet: &Address, asset_pair: &Symbol) {
 pub fn clear_score(env: &Env, wallet: &Address, asset_pair: &Symbol) {
     let key = DataKey::Score(wallet.clone(), asset_pair.clone());
     env.storage().persistent().remove(&key);
+    env.storage()
+        .persistent()
+        .remove(&DataKey::ScoreHistory(wallet.clone(), asset_pair.clone()));
+    env.storage()
+        .persistent()
+        .remove(&DataKey::HistoricalMaxScore(wallet.clone(), asset_pair.clone()));
+    env.storage()
+        .persistent()
+        .remove(&DataKeyC::BreachCount(wallet.clone(), asset_pair.clone()));
+    env.storage()
+        .persistent()
+        .remove(&DataKey::ScoreCount(wallet.clone(), asset_pair.clone()));
+    env.storage()
+        .persistent()
+        .remove(&DataKey::LastSubmitTime(wallet.clone(), asset_pair.clone()));
+    env.storage()
+        .instance()
+        .remove(&DataKeyD::TokenBucket(wallet.clone(), asset_pair.clone()));
     remove_pair_for_wallet(env, wallet, asset_pair);
     remove_score_entry(env, wallet, asset_pair);
 }

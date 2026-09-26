@@ -172,7 +172,7 @@ fn test_error_emptybatch() {
     client.initialize(&admin, &service);
 
     let empty_vec = Vec::new(&env);
-    let result = client.try_submit_scores_batch(&empty_vec);
+    let result = client.try_submit_scores_batch(&Vec::new(&env), &empty_vec);
     assert_eq!(result, Err(Ok(Error::EmptyBatch)));
 }
 
@@ -200,7 +200,7 @@ fn test_error_batchtoolarge() {
         });
     }
 
-    let result = client.try_submit_scores_batch(&batch);
+    let result = client.try_submit_scores_batch(&Vec::new(&env), &batch);
     assert_eq!(result, Err(Ok(Error::BatchTooLarge)));
 }
 

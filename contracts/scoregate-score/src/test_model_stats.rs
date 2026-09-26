@@ -131,7 +131,7 @@ fn test_batch_submissions_update_stats() {
         model_version: 2,
     });
 
-    client.submit_scores_batch(&batch);
+    client.submit_scores_batch(&Vec::new(&env), &batch);
 
     let stats1 = client.get_model_version_stats(&1);
     assert_eq!(stats1.submission_count, 1);
