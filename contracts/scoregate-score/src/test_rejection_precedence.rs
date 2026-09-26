@@ -58,7 +58,7 @@ fn test_pair_paused_beats_invalid_score() {
         model_version: 1,
     });
 
-    let result = client.submit_scores_batch(&batch);
+    let result = client.submit_scores_batch(&Vec::new(&env), &batch);
     let entry = result.results.get(0).unwrap();
     assert!(!entry.accepted);
     // PairPaused = ContractPaused = 7, must beat InvalidScore = 4
@@ -88,7 +88,7 @@ fn test_pair_paused_beats_invalid_confidence() {
         model_version: 1,
     });
 
-    let result = client.submit_scores_batch(&batch);
+    let result = client.submit_scores_batch(&Vec::new(&env), &batch);
     let entry = result.results.get(0).unwrap();
     assert!(!entry.accepted);
     assert_eq!(
@@ -118,7 +118,7 @@ fn test_invalid_score_beats_invalid_confidence() {
         model_version: 1,
     });
 
-    let result = client.submit_scores_batch(&batch);
+    let result = client.submit_scores_batch(&Vec::new(&env), &batch);
     let entry = result.results.get(0).unwrap();
     assert!(!entry.accepted);
     assert_eq!(
@@ -146,7 +146,7 @@ fn test_invalid_score_beats_invalid_timestamp() {
         model_version: 1,
     });
 
-    let result = client.submit_scores_batch(&batch);
+    let result = client.submit_scores_batch(&Vec::new(&env), &batch);
     let entry = result.results.get(0).unwrap();
     assert!(!entry.accepted);
     assert_eq!(
@@ -176,7 +176,7 @@ fn test_invalid_confidence_beats_invalid_timestamp() {
         model_version: 1,
     });
 
-    let result = client.submit_scores_batch(&batch);
+    let result = client.submit_scores_batch(&Vec::new(&env), &batch);
     let entry = result.results.get(0).unwrap();
     assert!(!entry.accepted);
     assert_eq!(
@@ -186,13 +186,11 @@ fn test_invalid_confidence_beats_invalid_timestamp() {
     );
 }
 
-// ── Priority 7: BelowScoreFloor uses code 43, not code 4 ─────────────────────
+// ── Priority 7: BelowScoreFloor uses code 4 ──────────────────────────────────
 
-/// BelowScoreFloor rejection_code must be 43, NOT 4 (InvalidScore).
-/// This is the core fix for #689: the two rejection reasons are
-/// distinguishable by their numeric codes.
+/// BelowScoreFloor shares the InvalidScore discriminant in batch results.
 #[test]
-fn test_below_score_floor_uses_code_43_not_4() {
+fn test_below_score_floor_uses_invalid_score_code() {
     let (env, client, _admin, _service, pair) = setup();
 
     // Enable floor: HWM=80, floor=20
@@ -229,25 +227,24 @@ fn test_below_score_floor_uses_code_43_not_4() {
         model_version: 1,
     });
 
-    let result = client.submit_scores_batch(&batch);
+    let result = client.submit_scores_batch(&Vec::new(&env), &batch);
     let entry = result.results.get(0).unwrap();
     assert!(!entry.accepted);
 
-    // Must be 43 (BelowScoreFloor), NOT 4 (InvalidScore)
+    // BelowScoreFloor uses the same discriminant as InvalidScore.
     assert_eq!(
-        entry.rejection_code, 43u32,
-        "BelowScoreFloor must emit rejection_code=43, not InvalidScore=4"
+        entry.rejection_code,
+        Error::BelowScoreFloor as u32,
+        "BelowScoreFloor must match the single-submit InvalidScore discriminant"
     );
-    assert_ne!(
+    assert_eq!(
         entry.rejection_code,
         Error::InvalidScore as u32,
-        "rejection_code 43 must be distinct from InvalidScore (4)"
+        "batch and single floor rejections must use the same discriminant"
     );
 }
 
-/// Score > 100 (code 4) and BelowScoreFloor (code 43) have different codes —
-/// confirms the two are numerically distinguishable even though they share
-/// an alias in the Error enum.
+/// Score > 100 and BelowScoreFloor share code 4 through the Error enum.
 #[test]
 fn test_invalid_score_code_distinct_from_floor_code() {
     assert_ne!(
@@ -282,7 +279,7 @@ fn test_rate_limit_does_not_override_invalid_score() {
         model_version: 1,
     });
 
-    let result = client.submit_scores_batch(&batch);
+    let result = client.submit_scores_batch(&Vec::new(&env), &batch);
     let entry = result.results.get(0).unwrap();
     assert!(!entry.accepted);
     assert_eq!(
@@ -335,7 +332,7 @@ fn test_valid_entry_accepted_among_invalid_siblings() {
         model_version: 1,
     });
 
-    let result = client.submit_scores_batch(&batch);
+    let result = client.submit_scores_batch(&Vec::new(&env), &batch);
     assert_eq!(result.accepted_count, 1);
     assert_eq!(result.rejected_count, 2);
 

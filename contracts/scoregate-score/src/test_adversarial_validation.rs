@@ -313,7 +313,7 @@ fn test_batch_mixed_contradictory_signals() {
         model_version: 1,
     });
 
-    let result = client.submit_scores_batch(&batch);
+    let result = client.submit_scores_batch(&Vec::new(&env), &batch);
     assert_eq!(result.accepted_count, 5, "all contradictory-but-valid entries must be accepted");
     assert_eq!(result.rejected_count, 0);
 
@@ -360,7 +360,7 @@ fn test_batch_invalid_mixed_with_contradictory_valid() {
         model_version: 1,
     });
 
-    let result = client.submit_scores_batch(&batch);
+    let result = client.submit_scores_batch(&Vec::new(&env), &batch);
     assert_eq!(result.accepted_count, 1);
     assert_eq!(result.rejected_count, 1);
 

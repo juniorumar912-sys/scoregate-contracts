@@ -339,7 +339,7 @@ fn test_batch_rejects_sub_floor_entry() {
         model_version: 1,
     });
 
-    let result = client.submit_scores_batch(&batch);
+    let result = client.submit_scores_batch(&Vec::new(&env), &batch);
     assert_eq!(result.accepted_count, 0);
     assert_eq!(result.rejected_count, 1);
     assert_eq!(result.results.get(0).unwrap().rejection_code, Error::BelowScoreFloor as u32);

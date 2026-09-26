@@ -57,6 +57,8 @@ pub const MAX_WALLET_PAIRS: u32 = 20;
 pub const DEFAULT_COOLDOWN_SECS: u64 = 3_600;
 pub const MIN_COOLDOWN_SECS: u64 = 60;
 pub const MAX_COOLDOWN_SECS: u64 = 86_400;
+/// Maximum number of tokens allowed in a rate-limit burst bucket.
+pub const MAX_BURST_CAPACITY: u32 = 3;
 pub const MIN_UPGRADE_DELAY_SECS: u64 = 172_800;
 pub const MAX_UPGRADE_DELAY_SECS: u64 = 1_209_600;
 pub const DEFAULT_UPGRADE_DELAY_SECS: u64 = 172_800;
@@ -167,6 +169,7 @@ pub const HLL_DEFAULT_PRECISION: u32 = 8;
 pub const DEFAULT_QUORUM_FAILURE_WINDOW_SECS: u64 = 86_400; // 24 hours
 
 pub const MAX_TRACKED_SCORE_ENTRIES: u32 = 500;
+pub const SCORE_ENTRY_INDEX_BUCKETS: u32 = 16;
 pub const MAX_EXPIRING_ENTRIES_PER_CALL: u32 = 100;
 
 /// Maximum number of concurrently pending parameter-change proposals.
