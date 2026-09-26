@@ -59,6 +59,7 @@ pub enum Error {
 
 #[allow(non_upper_case_globals)]
 impl Error {
+    pub const InvalidArgument: Error = Error::InvalidThreshold;
     pub const InvalidMinConfidence: Error = Error::InvalidConfidence;
     pub const InvalidWithdrawalAmount: Error = Error::InvalidThreshold;
     pub const WithdrawalInProgress: Error = Error::Unauthorized;

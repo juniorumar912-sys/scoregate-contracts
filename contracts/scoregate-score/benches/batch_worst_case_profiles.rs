@@ -365,7 +365,7 @@ fn bench_all_accepted(c: &mut Criterion) {
                 let batch = build_plain_batch(&env, &pair, size, false, false);
                 env.budget().reset_unlimited();
                 env.budget().reset_tracker();
-                black_box(client.submit_scores_batch(&batch));
+                black_box(client.submit_scores_batch(&Vec::new(&env), &batch));
                 black_box((env.budget().cpu_instruction_cost(), env.budget().memory_bytes_cost()))
             });
         });
@@ -386,7 +386,7 @@ fn bench_all_rejected(c: &mut Criterion) {
                 let batch = build_plain_batch(&env, &pair, size, true, false);
                 env.budget().reset_unlimited();
                 env.budget().reset_tracker();
-                black_box(client.submit_scores_batch(&batch));
+                black_box(client.submit_scores_batch(&Vec::new(&env), &batch));
                 black_box((env.budget().cpu_instruction_cost(), env.budget().memory_bytes_cost()))
             });
         });
@@ -407,7 +407,7 @@ fn bench_rate_limited(c: &mut Criterion) {
                 let batch = build_plain_batch(&env, &pair, size, false, true);
                 env.budget().reset_unlimited();
                 env.budget().reset_tracker();
-                black_box(client.submit_scores_batch(&batch));
+                black_box(client.submit_scores_batch(&Vec::new(&env), &batch));
                 black_box((env.budget().cpu_instruction_cost(), env.budget().memory_bytes_cost()))
             });
         });
@@ -428,7 +428,7 @@ fn bench_mixed_half_accepted(c: &mut Criterion) {
                 let batch = build_mixed_batch(&env, &pair, size);
                 env.budget().reset_unlimited();
                 env.budget().reset_tracker();
-                black_box(client.submit_scores_batch(&batch));
+                black_box(client.submit_scores_batch(&Vec::new(&env), &batch));
                 black_box((env.budget().cpu_instruction_cost(), env.budget().memory_bytes_cost()))
             });
         });

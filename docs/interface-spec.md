@@ -122,16 +122,27 @@ capabilities (all `symbol_short!`):
 |-----------------|----------------------------------------------------------------------|
 | `score`         | `get_score` / `submit_score`                                         |
 | `history`       | `get_score_history`                                                  |
+| `hpag`          | Historical percentile and aggregate history queries                   |
 | `batch`         | `submit_scores_batch`                                                |
 | `gate`          | `query_risk_gate`                                                    |
 | `aggr`          | `get_aggregate_score` (cross-asset aggregate risk)                   |
 | `count`         | `get_score_count`                                                    |
+| `var`           | Variance and adaptive-threshold queries                               |
 | `batch_attested`| `submit_scores_batch_attested` (Merkle-root attestation)             |
 | `cgate`         | `query_risk_gate_with_confidence` / global confidence floor         |
+| `histogram`     | Score histogram queries                                               |
+| `rgate`         | Risk-gate evaluation endpoints                                        |
 | `emb`           | `set_score_embargo` / `lift_score_embargo`                          |
 | `cons`          | `commit_consensus` / `reveal_consensus` / `set_consensus_config`     |
 | `pr_rd`         | `is_pair_paused`                                                     |
+| `dprv`          | Differential-privacy configuration and queries                        |
 | `meta`          | `get_interface_metadata`                                             |
+| `reconcile`     | `reconcile_state`                                                    |
+| `checksum`      | `compute_state_checksum` / `verify_state_checksum`                   |
+| `snapshot`      | Reconciliation snapshot history                                      |
+| `export_score`  | `export_score` / `export_all_scores`                                  |
+| `freeze`        | `freeze_contract` / `unfreeze_contract`                              |
+| `arch`          | Architecture owner and mandatory-reviewer reads                       |
 
 Unrecognised capabilities return `false`.
 

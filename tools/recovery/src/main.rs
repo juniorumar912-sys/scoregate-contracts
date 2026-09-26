@@ -353,8 +353,8 @@ fn cmd_verify(snapshot_path: &PathBuf, export_path: Option<&Path>) -> Result<()>
         let entries: Vec<ExportableScoreEntry> =
             serde_json::from_str(&content).context("Export is not a valid JSON array")?;
         if entries.len() as u32 != snapshot.entry_count {
-            eprintln!(
-                "  ⚠ Entry count mismatch: export has {} entries, snapshot says {}",
+            bail!(
+                "export entry count mismatch: export has {} entries, contract-reported count is {}",
                 entries.len(),
                 snapshot.entry_count
             );

@@ -248,7 +248,7 @@ fn process_snapshot(
             model_version: 1u32,
         });
 
-        let result = client.submit_scores_batch(&batch);
+        let result = client.submit_scores_batch(&Vec::new(&env), &batch);
         let tx_sequence = count as u64 + 1;
         let accepted = result.accepted_count > 0;
         let rejection_code = if accepted { None } else { Some(result.rejected_count) };
@@ -331,7 +331,7 @@ fn process_failure_scenario(
             model_version,
         });
 
-        let result = client.submit_scores_batch(&batch);
+        let result = client.submit_scores_batch(&Vec::new(&env), &batch);
         println!(
             "scenario={} wallet={}, pair={} -> accepted_count={} rejected_count={}",
             scenario, entry.wallet, entry.asset_pair, result.accepted_count, result.rejected_count

@@ -123,7 +123,7 @@ pub mod score_flow {
                 model_version: 1,
             });
 
-            let result = client.submit_scores_batch(&submissions);
+            let result = client.submit_scores_batch(&Vec::new(&env), &submissions);
             assert_eq!(result.accepted_count, 2);
             assert_eq!(result.rejected_count, 0);
         }
@@ -515,7 +515,7 @@ pub mod governance_flow {
             let (client, _admin) = setup(&env);
 
             let new_service = Address::generate(&env);
-            client.set_service(&new_service);
+            client.set_service(&Vec::new(&env), &new_service);
             assert_eq!(client.get_service(), new_service);
         }
 

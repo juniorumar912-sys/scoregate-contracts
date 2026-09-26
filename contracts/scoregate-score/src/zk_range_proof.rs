@@ -485,19 +485,41 @@ pub fn g() -> Pt {
     }
 }
 
-pub fn get_generators() -> (Pt, Pt, Fe) {
+fn hash_to_curve(env: &Env, domain: &[u8]) -> Pt {
     let d = Fe::from_u64(121665).neg().mul(Fe::from_u64(121666).invert());
-    let g_pt = g();
-    let h_pt = g_pt.mul(Sc::from_u64(8), d); // independent generator H = 8G
+    for counter in 0..=u8::MAX {
+        let mut input = [0u8; 33];
+        input[..domain.len()].copy_from_slice(domain);
+        input[32] = counter;
+        let digest = env.crypto().sha256(&Bytes::from_array(env, &input));
+        if let Some(point) = decompress_pt_32(env, &BytesN::from_array(env, &digest.to_array())) {
+            if !point.is_identity() && is_on_curve(point.x, point.y, d) {
+                return point;
+            }
+        }
+    }
+    panic!("hash-to-curve failed")
+}
+
+pub fn get_generators(env: &Env) -> (Pt, Pt, Fe) {
+    let d = Fe::from_u64(121665).neg().mul(Fe::from_u64(121666).invert());
+    let g_pt = hash_to_curve(env, b"ScoreGate Bulletproof G");
+    let h_pt = hash_to_curve(env, b"ScoreGate Bulletproof H");
     (g_pt, h_pt, d)
 }
 
-pub fn get_vector_generators(d: Fe) -> ([Pt; 8], [Pt; 8]) {
+pub fn get_vector_generators(env: &Env, d: Fe) -> ([Pt; 8], [Pt; 8]) {
     let mut gs = [Pt::identity(); 8];
     let mut hs = [Pt::identity(); 8];
     for i in 0..8 {
-        gs[i] = g().mul(Sc::from_u64((16 + i) as u64), d);
-        hs[i] = g().mul(Sc::from_u64((32 + i) as u64), d);
+        let mut g_domain = [0u8; 26];
+        g_domain[..22].copy_from_slice(b"ScoreGate Bulletproof G");
+        g_domain[22..26].copy_from_slice(&(i as u32).to_le_bytes());
+        let mut h_domain = [0u8; 26];
+        h_domain[..22].copy_from_slice(b"ScoreGate Bulletproof H");
+        h_domain[22..26].copy_from_slice(&(i as u32).to_le_bytes());
+        gs[i] = hash_to_curve(env, &g_domain);
+        hs[i] = hash_to_curve(env, &h_domain);
     }
     (gs, hs)
 }
@@ -741,8 +763,8 @@ impl SeededPrng {
 }
 
 pub fn prove_range_proof(env: &Env, v: u32, r: Sc, mut prng: SeededPrng) -> Bulletproof {
-    let (g_pt, h_pt, d) = get_generators();
-    let (gs, hs) = get_vector_generators(d);
+    let (g_pt, h_pt, d) = get_generators(env);
+    let (gs, hs) = get_vector_generators(env, d);
 
     let mut a_L = [Sc::zero(); 8];
     let mut a_R = [Sc::zero(); 8];
@@ -896,8 +918,8 @@ pub fn prove_range_proof(env: &Env, v: u32, r: Sc, mut prng: SeededPrng) -> Bull
 // ── Bulletproof Verifier ──────────────────────────────────────────────────────
 
 pub fn verify_range_proof(env: &Env, V: Pt, proof: &Bulletproof) -> bool {
-    let (g_pt, h_pt, d) = get_generators();
-    let (gs, hs) = get_vector_generators(d);
+    let (g_pt, h_pt, d) = get_generators(env);
+    let (gs, hs) = get_vector_generators(env, d);
 
     let (y, z) = hash_fs_y_z(env, &V, &proof.A, &proof.S);
     let x = hash_fs_x(env, &proof.T1, &proof.T2);
