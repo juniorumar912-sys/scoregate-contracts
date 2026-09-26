@@ -1,12 +1,15 @@
 use anyhow::{anyhow, bail, Context, Result};
 use scoregate_aggregator::{ScoreGateAggregator, ScoreGateAggregatorClient};
-use scoregate_score::{ScoreGateScoreContract, ScoreGateScoreContractClient};
+use scoregate_score::{
+    BatchAttestation, ScoreGateScoreContract, ScoreGateScoreContractClient, ScoreSubmission,
+    ScoreSubmissionWithProof,
+};
 use mock_amm::{FailPolicy as AmmFailPolicy, MockAmm, MockAmmClient};
 use mock_lending::{MockLending, MockLendingClient};
 use serde::{Deserialize, Serialize};
 use soroban_sdk::{
     testutils::{Address as _, EnvTestConfig, Events as _, Ledger as _},
-    Address, Env, IntoVal, Symbol, Val, Vec as SorobanVec,
+    Address, BytesN, Env, IntoVal, Symbol, Val, Vec as SorobanVec,
 };
 use std::collections::BTreeSet;
 use std::fs;
@@ -41,6 +44,8 @@ pub enum Operation {
         confidence: u32,
         advance_seconds: u64,
     },
+    SubmitScoresBatch,
+    SubmitBatchAttested,
     AmmSwap {
         #[serde(with = "i128_decimal")]
         amount: i128,
@@ -71,6 +76,8 @@ impl Operation {
     fn kind(&self) -> &'static str {
         match self {
             Self::SubmitScore { .. } => "submit_score",
+            Self::SubmitScoresBatch => "submit_scores_batch",
+            Self::SubmitBatchAttested => "submit_scores_batch_attested",
             Self::AmmSwap { .. } => "amm_swap",
             Self::AmmLiquidity { .. } => "amm_liquidity",
             Self::LendingBorrow { .. } => "lending_borrow",
@@ -81,7 +88,10 @@ impl Operation {
     }
 
     fn must_preserve_score_and_events(&self) -> bool {
-        !matches!(self, Self::SubmitScore { .. })
+        !matches!(
+            self,
+            Self::SubmitScore { .. } | Self::SubmitScoresBatch | Self::SubmitBatchAttested
+        )
     }
 }
 
@@ -368,6 +378,37 @@ fn invoke(fixture: &Fixture<'_>, operation: &Operation) -> Result<String> {
             );
             Ok(format!("{result:?}"))
         }
+        Operation::SubmitScoresBatch => {
+            let now = fixture.env.ledger().timestamp().saturating_add(1);
+            fixture.env.ledger().with_mut(|ledger| ledger.timestamp = now);
+            let mut submissions = SorobanVec::new(&fixture.env);
+            submissions.push_back(ScoreSubmission {
+                wallet: fixture.wallet.clone(),
+                asset_pair: Symbol::new(&fixture.env, "XLM_USDC"),
+                score: 50,
+                benford_flag: false,
+                ml_flag: false,
+                timestamp: now,
+                confidence: 80,
+                model_version: 1,
+            });
+            Ok(format!("{:?}", fixture.score.try_submit_scores_batch(&submissions)))
+        }
+        Operation::SubmitBatchAttested => {
+            let submissions = SorobanVec::<ScoreSubmissionWithProof>::new(&fixture.env);
+            let attestation = BatchAttestation {
+                merkle_root: BytesN::from_array(&fixture.env, &[0; 32]),
+                signature: BytesN::from_array(&fixture.env, &[0; 65]),
+            };
+            Ok(format!(
+                "{:?}",
+                fixture.score.try_submit_scores_batch_attested(
+                    &SorobanVec::new(&fixture.env),
+                    &submissions,
+                    &attestation,
+                )
+            ))
+        }
         Operation::AmmSwap { amount, asset_pair } => {
             let pair = symbol(&fixture.env, asset_pair)?;
             Ok(format!("{:?}", fixture.amm.try_swap(&fixture.wallet, &pair, amount)))
@@ -443,7 +484,12 @@ pub fn execute_campaign(campaign: &Campaign) -> Result<CampaignReport> {
                     operation.kind()
                 );
             }
-        } else if matches!(operation, Operation::SubmitScore { .. }) {
+        } else if matches!(
+            operation,
+            Operation::SubmitScore { .. }
+                | Operation::SubmitScoresBatch
+                | Operation::SubmitBatchAttested
+        ) {
             logical_score_writes += usize::from(before_score != after_score);
         }
 
@@ -555,7 +601,7 @@ fn random_pair(rng: &mut XorShift64) -> String {
 }
 
 fn random_operation(rng: &mut XorShift64) -> Operation {
-    match rng.index(7) {
+    match rng.index(9) {
         0 => {
             const SCORES: [u32; 6] = [0, 74, 75, 100, 101, u32::MAX];
             const CONFIDENCE: [u32; 5] = [0, 49, 50, 100, 101];
@@ -565,14 +611,16 @@ fn random_operation(rng: &mut XorShift64) -> Operation {
                 advance_seconds: [0, 1, 3_600, 3_601, u64::MAX][rng.index(5)],
             }
         }
-        1 => Operation::AmmSwap { amount: random_amount(rng), asset_pair: random_pair(rng) },
-        2 => Operation::AmmLiquidity { amount: random_amount(rng) },
-        3 => Operation::LendingBorrow { amount: random_amount(rng), asset_pair: random_pair(rng) },
-        4 => Operation::AggregatorGate {
+        1 => Operation::SubmitScoresBatch,
+        2 => Operation::SubmitBatchAttested,
+        3 => Operation::AmmSwap { amount: random_amount(rng), asset_pair: random_pair(rng) },
+        4 => Operation::AmmLiquidity { amount: random_amount(rng) },
+        5 => Operation::LendingBorrow { amount: random_amount(rng), asset_pair: random_pair(rng) },
+        6 => Operation::AggregatorGate {
             threshold: [0, 74, 75, 100, 101, u32::MAX][rng.index(6)],
             asset_pair: random_pair(rng),
         },
-        5 => Operation::RotateAmmToUnavailable,
+        7 => Operation::RotateAmmToUnavailable,
         _ => Operation::RawInvoke {
             target: [
                 InvocationTarget::Score,
@@ -719,6 +767,8 @@ where
             Operation::SubmitScore { .. } => {
                 Some(Operation::SubmitScore { score: 0, confidence: 0, advance_seconds: 0 })
             }
+            Operation::SubmitScoresBatch => Some(Operation::SubmitScoresBatch),
+            Operation::SubmitBatchAttested => Some(Operation::SubmitBatchAttested),
             Operation::AmmSwap { .. } => {
                 Some(Operation::AmmSwap { amount: 0, asset_pair: "XLM_USDC".to_owned() })
             }

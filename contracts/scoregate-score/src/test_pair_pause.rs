@@ -180,7 +180,7 @@ fn test_batch_pair_paused_entry_skipped() {
         model_version: 1,
     });
 
-    let result: BatchResult = client.submit_scores_batch(&batch);
+    let result: BatchResult = client.submit_scores_batch(&Vec::new(&env), &batch);
     assert_eq!(result.accepted_count, 1);
     assert_eq!(result.rejected_count, 1);
 

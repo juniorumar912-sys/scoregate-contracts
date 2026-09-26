@@ -83,7 +83,7 @@ fn normalization_batch_success_path() {
     let wallet = Address::generate(&env);
     let sub = valid_sub(&env, &wallet);
 
-    let result = client.submit_scores_batch(&vec![&env, sub]);
+    let result = client.submit_scores_batch(&Vec::new(&env), &vec![&env, sub]);
 
     assert_eq!(result.accepted_count, 1);
     assert_eq!(result.rejected_count, 0);
@@ -124,7 +124,7 @@ fn normalization_single_and_batch_store_identical_values() {
         confidence: 75,
         model_version: 1,
     };
-    client.submit_scores_batch(&vec![&env, sub]);
+    client.submit_scores_batch(&Vec::new(&env), &vec![&env, sub]);
 
     let a = client.get_score(&wallet_a, &pair);
     let b = client.get_score(&wallet_b, &pair);
@@ -189,7 +189,7 @@ fn normalization_boundary_batch_score_zero_and_100_accepted() {
     let wallet_lo = Address::generate(&env);
     let wallet_hi = Address::generate(&env);
 
-    let result = client.submit_scores_batch(&vec![
+    let result = client.submit_scores_batch(&Vec::new(&env), &vec![
         &env,
         ScoreSubmission {
             wallet: wallet_lo.clone(),
@@ -294,7 +294,7 @@ fn normalization_batch_rejects_score_over_100() {
     let (env, client, _admin, _service) = setup();
     let wallet = Address::generate(&env);
 
-    let result = client.submit_scores_batch(&vec![
+    let result = client.submit_scores_batch(&Vec::new(&env), &vec![
         &env,
         ScoreSubmission {
             wallet: wallet.clone(),
@@ -320,7 +320,7 @@ fn normalization_batch_rejects_confidence_over_100() {
     let (env, client, _admin, _service) = setup();
     let wallet = Address::generate(&env);
 
-    let result = client.submit_scores_batch(&vec![
+    let result = client.submit_scores_batch(&Vec::new(&env), &vec![
         &env,
         ScoreSubmission {
             wallet: wallet.clone(),
@@ -344,7 +344,7 @@ fn normalization_batch_rejects_zero_timestamp() {
     let (env, client, _admin, _service) = setup();
     let wallet = Address::generate(&env);
 
-    let result = client.submit_scores_batch(&vec![
+    let result = client.submit_scores_batch(&Vec::new(&env), &vec![
         &env,
         ScoreSubmission {
             wallet: wallet.clone(),
@@ -394,7 +394,7 @@ fn normalization_order_score_before_confidence_batch() {
     let (env, client, _admin, _service) = setup();
     let wallet = Address::generate(&env);
 
-    let result = client.submit_scores_batch(&vec![
+    let result = client.submit_scores_batch(&Vec::new(&env), &vec![
         &env,
         ScoreSubmission {
             wallet: wallet.clone(),
@@ -438,7 +438,7 @@ fn normalization_order_confidence_before_timestamp_batch() {
     let (env, client, _admin, _service) = setup();
     let wallet = Address::generate(&env);
 
-    let result = client.submit_scores_batch(&vec![
+    let result = client.submit_scores_batch(&Vec::new(&env), &vec![
         &env,
         ScoreSubmission {
             wallet: wallet.clone(),
@@ -466,7 +466,7 @@ fn normalization_batch_mixed_partial_accept() {
     let wallet_bad_ts = Address::generate(&env);
     let pair = symbol_short!("XLM_USDC");
 
-    let result = client.submit_scores_batch(&vec![
+    let result = client.submit_scores_batch(&Vec::new(&env), &vec![
         &env,
         ScoreSubmission {
             wallet: wallet_ok.clone(),

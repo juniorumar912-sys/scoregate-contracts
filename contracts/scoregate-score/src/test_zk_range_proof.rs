@@ -26,7 +26,7 @@ fn test_verify_score_range_proof_success() {
     let threshold = 50u32;
     
     let r = Sc::from_u64(987654321);
-    let (g_pt, h_pt, d) = get_generators();
+    let (g_pt, h_pt, d) = get_generators(&env);
     
     // C = g^score * h^r
     let c_pt = g_pt.mul(Sc::from_u64(score as u64), d).add(h_pt.mul(r, d), d);
@@ -91,7 +91,7 @@ fn test_verify_score_range_proof_invalid_threshold() {
     let threshold = 50u32;
     
     let r = Sc::from_u64(987654321);
-    let (g_pt, h_pt, d) = get_generators();
+    let (g_pt, h_pt, d) = get_generators(&env);
     
     let c_pt = g_pt.mul(Sc::from_u64(score as u64), d).add(h_pt.mul(r, d), d);
     let commitment = compress_pt(&env, &c_pt);
@@ -150,7 +150,7 @@ fn test_verify_score_range_proof_tampered_commitment() {
     let threshold = 50u32;
     
     let r = Sc::from_u64(987654321);
-    let (g_pt, h_pt, d) = get_generators();
+    let (g_pt, h_pt, d) = get_generators(&env);
     
     let c_pt = g_pt.mul(Sc::from_u64(score as u64), d).add(h_pt.mul(r, d), d);
     let commitment = compress_pt(&env, &c_pt);
@@ -212,7 +212,7 @@ fn test_verify_score_range_proof_tampered_proof() {
     let threshold = 50u32;
     
     let r = Sc::from_u64(987654321);
-    let (g_pt, h_pt, d) = get_generators();
+    let (g_pt, h_pt, d) = get_generators(&env);
     
     let c_pt = g_pt.mul(Sc::from_u64(score as u64), d).add(h_pt.mul(r, d), d);
     let commitment = compress_pt(&env, &c_pt);
@@ -289,7 +289,7 @@ fn test_verify_score_range_proof_boundary_score_zero() {
     let threshold = 1u32;
 
     let r = Sc::from_u64(11223344);
-    let (g_pt, h_pt, d) = get_generators();
+    let (g_pt, h_pt, d) = get_generators(&env);
     let c_pt = g_pt.mul(Sc::from_u64(score as u64), d).add(h_pt.mul(r, d), d);
     let commitment = compress_pt(&env, &c_pt);
 
@@ -341,12 +341,12 @@ fn test_verify_score_range_proof_boundary_score_max() {
     let wallet = Address::generate(&env);
     let pair = Symbol::new(&env, "XLM_USDC");
 
-    // Boundary: score = 100 (maximum valid score), threshold = 101.
-    let score = 100u32;
-    let threshold = 101u32;
+    // Boundary: threshold = 100 (maximum valid threshold), score = 99.
+    let score = 99u32;
+    let threshold = 100u32;
 
     let r = Sc::from_u64(55667788);
-    let (g_pt, h_pt, d) = get_generators();
+    let (g_pt, h_pt, d) = get_generators(&env);
     let c_pt = g_pt.mul(Sc::from_u64(score as u64), d).add(h_pt.mul(r, d), d);
     let commitment = compress_pt(&env, &c_pt);
 
@@ -408,7 +408,7 @@ fn test_verify_score_range_proof_boundary_score_equals_threshold() {
     let threshold = 50u32;
 
     let r = Sc::from_u64(24681357);
-    let (g_pt, h_pt, d) = get_generators();
+    let (g_pt, h_pt, d) = get_generators(&env);
     let c_pt = g_pt.mul(Sc::from_u64(score as u64), d).add(h_pt.mul(r, d), d);
     let commitment = compress_pt(&env, &c_pt);
 
@@ -462,7 +462,7 @@ fn test_verify_score_range_proof_cross_wallet_commitment_mismatch() {
     let pair = Symbol::new(&env, "XLM_USDC");
 
     let threshold = 50u32;
-    let (g_pt, h_pt, d) = get_generators();
+    let (g_pt, h_pt, d) = get_generators(&env);
 
     // Wallet A's own score/commitment.
     let score_a = 40u32;
@@ -547,7 +547,7 @@ fn test_verify_score_range_proof_replayed_across_threshold() {
     let original_threshold = 50u32;
 
     let r = Sc::from_u64(135792468);
-    let (g_pt, h_pt, d) = get_generators();
+    let (g_pt, h_pt, d) = get_generators(&env);
     let c_pt = g_pt.mul(Sc::from_u64(score as u64), d).add(h_pt.mul(r, d), d);
     let commitment = compress_pt(&env, &c_pt);
 
@@ -618,7 +618,7 @@ fn test_verify_score_range_proof_tampered_fs_challenge() {
     let threshold = 50u32;
 
     let r = Sc::from_u64(19283746);
-    let (g_pt, h_pt, d) = get_generators();
+    let (g_pt, h_pt, d) = get_generators(&env);
     let c_pt = g_pt.mul(Sc::from_u64(score as u64), d).add(h_pt.mul(r, d), d);
     let commitment = compress_pt(&env, &c_pt);
 

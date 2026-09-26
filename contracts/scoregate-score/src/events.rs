@@ -557,7 +557,12 @@ pub fn score_floor_policy_updated(
     env.events().publish((symbol_short!("sf_upd"),), (enabled, high_water_mark, floor_value));
 }
 
-pub fn score_floor_overridden(env: &Env, by: &Address, wallet: &Address, asset_pair: &Symbol) {
+pub fn score_floor_overridden(
+    env: &Env,
+    by: &Vec<Address>,
+    wallet: &Address,
+    asset_pair: &Symbol,
+) {
     env.events()
         .publish((symbol_short!("sf_ovrd"), wallet.clone(), asset_pair.clone()), by.clone());
 }

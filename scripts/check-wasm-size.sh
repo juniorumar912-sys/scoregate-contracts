@@ -21,7 +21,7 @@ if [[ ! -f "$WASM_PATH" ]]; then
   cargo build --target wasm32-unknown-unknown --release -p scoregate-score --locked
 fi
 
-ACTUAL=$(wc -c < "$WASM_PATH" | tr -d ' ')
+ACTUAL=$(wc -c < "$WASM_PATH" | tr -d '[:space:]')
 
 MAX_ALLOWED=$(awk "BEGIN {print int($BUDGET * (1 + $TOLERANCE / 100))}")
 

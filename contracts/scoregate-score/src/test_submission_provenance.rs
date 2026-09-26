@@ -140,7 +140,7 @@ fn test_provenance_batch_validation_branch() {
         model_version: 3,
     });
 
-    let result = client.submit_scores_batch(&batch);
+    let result = client.submit_scores_batch(&Vec::new(&env), &batch);
     assert_eq!(result.accepted_count, 1);
 
     let prov = client.get_submission_provenance(&wallet, &pair);

@@ -68,7 +68,7 @@ fn submit_n_entries(
     while remaining > 0 {
         let chunk = remaining.min(MAX_BATCH);
         let batch = build_entries(env, asset_pair, chunk, batch_index);
-        black_box(client.submit_scores_batch(&batch));
+        black_box(client.submit_scores_batch(&Vec::new(&env), &batch));
         remaining -= chunk;
         batch_index += 1;
         env.ledger().with_mut(|l| l.timestamp += 3_601);

@@ -40,15 +40,12 @@ mod test_event_schema {
         }
     }
 
-    /// Regression test for the `pair_weight_reset` gap documented in
-    /// `docs/invariants.md` §4b: every other event in this contract carries
-    /// `EVENT_VERSION` as the second topic element, but `pair_weight_reset`'s
-    /// topic tuple is `(name, asset_pair)` — missing the version entirely.
+    /// Regression test for `pair_weight_reset`'s versioned topic shape.
     ///
     /// `test_all_events_carry_schema_version` above never catches this
     /// because it never triggers `bulk_reset_pair_weight` (the only caller of
     /// `pair_weight_reset`). This test triggers that path and pins the
-    /// corrected versioned topic shape so future changes cannot silently
+    /// versioned topic shape so future changes cannot silently
     /// break indexers.
     #[test]
     fn test_pair_weight_reset_carries_schema_version() {

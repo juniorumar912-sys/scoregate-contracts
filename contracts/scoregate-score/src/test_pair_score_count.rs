@@ -230,7 +230,7 @@ fn test_pair_score_count_batch_submission() {
         model_version: 1,
     });
 
-    let result = client.submit_scores_batch(&batch);
+    let result = client.submit_scores_batch(&Vec::new(&env), &batch);
     assert_eq!(result.accepted_count, 2);
     // Both accepted entries must each increment the counter.
     assert_eq!(client.get_pair_score_count(&pair), 2);
@@ -282,7 +282,7 @@ fn test_pair_score_count_batch_partial_rejection() {
         model_version: 1,
     });
 
-    let result = client.submit_scores_batch(&batch);
+    let result = client.submit_scores_batch(&Vec::new(&env), &batch);
     assert_eq!(result.accepted_count, 1);
     assert_eq!(result.rejected_count, 1);
 

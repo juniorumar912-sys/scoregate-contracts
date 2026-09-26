@@ -184,7 +184,7 @@ fn test_submit_scores_batch_rejects_oversized_pair_per_entry() {
         model_version: 1,
     });
 
-    let result = client.submit_scores_batch(&batch);
+    let result = client.submit_scores_batch(&Vec::new(&env), &batch);
 
     assert_eq!(result.accepted_count, 1);
     assert_eq!(result.rejected_count, 1);
@@ -551,7 +551,7 @@ fn test_set_service_rotates_authorised_account() {
     client.initialize(&admin, &service);
 
     let new_service = Address::generate(&env);
-    client.set_service(&new_service);
+    client.set_service(&Vec::new(&env), &new_service);
 
     assert_eq!(client.get_service(), new_service);
 
@@ -626,7 +626,7 @@ fn test_batch_blocked_when_paused() {
         confidence: 70,
         model_version: 1,
     });
-    let result = client.try_submit_scores_batch(&batch);
+    let result = client.try_submit_scores_batch(&Vec::new(&env), &batch);
     assert_eq!(result, Err(Ok(Error::ContractPaused)));
 }
 
@@ -705,7 +705,7 @@ fn test_new_admin_can_manage_service_after_transfer() {
     client.accept_admin();
 
     let new_service = Address::generate(&env);
-    client.set_service(&new_service);
+    client.set_service(&Vec::new(&env), &new_service);
     assert_eq!(client.get_service(), new_service);
 }
 
@@ -1150,7 +1150,7 @@ fn test_submit_scores_batch_writes_all_entries() {
         model_version: 2,
     });
 
-    let result: BatchResult = client.submit_scores_batch(&batch);
+    let result: BatchResult = client.submit_scores_batch(&Vec::new(&env), &batch);
     assert_eq!(result.accepted_count, 2);
     assert_eq!(result.rejected_count, 0);
     assert_eq!(result.results.len(), 2);
@@ -1193,7 +1193,7 @@ fn test_submit_scores_batch_skips_invalid_entries() {
         model_version: 1,
     });
 
-    let result: BatchResult = client.submit_scores_batch(&batch);
+    let result: BatchResult = client.submit_scores_batch(&Vec::new(&env), &batch);
     assert_eq!(result.accepted_count, 1);
     assert_eq!(result.rejected_count, 1);
     assert_eq!(result.results.len(), 2);
@@ -1221,7 +1221,7 @@ fn test_batch_empty_returns_error() {
     let (env, client, _admin, _service) = initialized();
 
     let empty: Vec<ScoreSubmission> = Vec::new(&env);
-    let result = client.try_submit_scores_batch(&empty);
+    let result = client.try_submit_scores_batch(&Vec::new(&env), &empty);
     assert_eq!(result, Err(Ok(Error::EmptyBatch)));
 }
 
@@ -1246,7 +1246,7 @@ fn test_batch_too_large_returns_error() {
         });
     }
 
-    let result = client.try_submit_scores_batch(&batch);
+    let result = client.try_submit_scores_batch(&Vec::new(&env), &batch);
     assert_eq!(result, Err(Ok(Error::BatchTooLarge)));
 }
 
@@ -1269,7 +1269,7 @@ fn test_batch_also_populates_score_history() {
         model_version: 1,
     });
 
-    let result: BatchResult = client.submit_scores_batch(&batch);
+    let result: BatchResult = client.submit_scores_batch(&Vec::new(&env), &batch);
     assert!(result.accepted_count >= 1);
 
     let history = client.get_score_history(&wallet, &asset_pair);
@@ -1320,7 +1320,7 @@ fn test_batch_result_all_accepted() {
         model_version: 2,
     });
 
-    let result: BatchResult = client.submit_scores_batch(&batch);
+    let result: BatchResult = client.submit_scores_batch(&Vec::new(&env), &batch);
     assert_eq!(result.accepted_count, 3);
     assert_eq!(result.rejected_count, 0);
     assert_eq!(result.results.len(), 3);
@@ -1360,7 +1360,7 @@ fn test_batch_result_mixed() {
         model_version: 1,
     });
 
-    let result: BatchResult = client.submit_scores_batch(&batch);
+    let result: BatchResult = client.submit_scores_batch(&Vec::new(&env), &batch);
     assert_eq!(result.accepted_count, 1);
     assert_eq!(result.rejected_count, 1);
     assert_eq!(result.results.len(), 2);
@@ -1415,7 +1415,7 @@ fn test_batch_result_index_correct() {
         model_version: 1,
     });
 
-    let result: BatchResult = client.submit_scores_batch(&batch);
+    let result: BatchResult = client.submit_scores_batch(&Vec::new(&env), &batch);
     assert_eq!(result.accepted_count, 2);
     assert_eq!(result.rejected_count, 1);
     assert_eq!(result.results.len(), 3);
@@ -1463,7 +1463,7 @@ fn test_batch_result_all_rejected() {
         model_version: 1,
     });
 
-    let result: BatchResult = client.submit_scores_batch(&batch);
+    let result: BatchResult = client.submit_scores_batch(&Vec::new(&env), &batch);
     assert_eq!(result.accepted_count, 0);
     assert_eq!(result.rejected_count, 2);
     assert_eq!(result.results.len(), 2);
@@ -1491,7 +1491,7 @@ fn test_batch_result_vec_length_matches_input() {
         confidence: 70,
         model_version: 1,
     });
-    let result1: BatchResult = client.submit_scores_batch(&batch1);
+    let result1: BatchResult = client.submit_scores_batch(&Vec::new(&env), &batch1);
     assert_eq!(result1.results.len(), 1);
 
     // Multiple entries.
@@ -1546,7 +1546,7 @@ fn test_batch_result_vec_length_matches_input() {
         confidence: 90,
         model_version: 1,
     });
-    let result5: BatchResult = client.submit_scores_batch(&batch5);
+    let result5: BatchResult = client.submit_scores_batch(&Vec::new(&env), &batch5);
     assert_eq!(result5.results.len(), 5);
 }
 
@@ -2313,7 +2313,7 @@ fn test_score_count_increments_via_batch() {
         model_version: 1,
     });
 
-    let result: BatchResult = client.submit_scores_batch(&batch);
+    let result: BatchResult = client.submit_scores_batch(&Vec::new(&env), &batch);
     assert_eq!(result.accepted_count, 2);
 
     assert_eq!(client.get_score_count(&wallet1, &asset_pair), 1);

@@ -198,7 +198,7 @@ fn test_batch_deprecated_version_entry_rejected() {
         model_version: 2,
     });
 
-    let result: BatchResult = client.submit_scores_batch(&batch);
+    let result: BatchResult = client.submit_scores_batch(&Vec::new(&env), &batch);
     assert_eq!(result.accepted_count, 1);
     assert_eq!(result.rejected_count, 1);
 
@@ -542,7 +542,7 @@ fn test_batch_submission_rejection_for_proposed_and_deprecated() {
         model_version: 3, // Deprecated -> reject
     });
 
-    let result: BatchResult = client.submit_scores_batch(&batch);
+    let result: BatchResult = client.submit_scores_batch(&Vec::new(&env), &batch);
     assert_eq!(result.accepted_count, 1);
     assert_eq!(result.rejected_count, 2);
 

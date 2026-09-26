@@ -437,7 +437,7 @@ fn test_batch_submission_enters_band_on_high_score() {
         confidence: 80,
         model_version: 1,
     });
-    client.submit_scores_batch(&batch);
+    client.submit_scores_batch(&Vec::new(&env), &batch);
     assert!(client.is_in_risk_band(&wallet, &pair));
 }
 
@@ -462,7 +462,7 @@ fn test_batch_submission_hysteresis_holds_in_band() {
         confidence: 80,
         model_version: 1,
     });
-    client.submit_scores_batch(&batch);
+    client.submit_scores_batch(&Vec::new(&env), &batch);
     assert!(client.is_in_risk_band(&wallet, &pair));
 
     env.ledger().with_mut(|l| l.timestamp += 3_601);
@@ -480,7 +480,7 @@ fn test_batch_submission_hysteresis_holds_in_band() {
         confidence: 80,
         model_version: 1,
     });
-    client.submit_scores_batch(&batch2);
+    client.submit_scores_batch(&Vec::new(&env), &batch2);
     assert!(
         client.is_in_risk_band(&wallet, &pair),
         "batch: hysteresis must hold while score >= exit_threshold"
