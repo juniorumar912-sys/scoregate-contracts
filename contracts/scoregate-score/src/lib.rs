@@ -1966,7 +1966,28 @@ impl ScoreGateScoreContract {
                         if previous_score.is_none() {
                             storage::increment_total_wallets_scored(&env);
                         }
+                        storage::update_model_stats(&env, sub.model_version, sub.score);
+                        storage::update_historical_max_score(
+                            &env,
+                            &sub.wallet,
+                            &sub.asset_pair,
+                            sub.score,
+                        );
+                        storage::update_histogram_on_write(&env, previous_score, sub.score);
+                        Self::update_welford_correlation(
+                            &env,
+                            &sub.wallet,
+                            &sub.asset_pair,
+                            sub.score,
+                        );
                         Self::refresh_aggregate_cache(&env, &sub.wallet);
+                        Self::assign_wallet_cluster(&env, &sub.wallet);
+                        Self::update_verkle_commitment(
+                            &env,
+                            &sub.wallet,
+                            &sub.asset_pair,
+                            &risk_score,
+                        );
 
                         if sub.score >= risk_threshold {
                             events::threshold_breached(
@@ -1977,6 +1998,35 @@ impl ScoreGateScoreContract {
                                 risk_threshold,
                             );
                         }
+                        Self::update_breach_counter(
+                            &env,
+                            &sub.wallet,
+                            &sub.asset_pair,
+                            sub.score,
+                            risk_threshold,
+                        );
+                        Self::evaluate_risk_band(
+                            &env,
+                            &sub.wallet,
+                            &sub.asset_pair,
+                            sub.score,
+                            risk_threshold,
+                        );
+                        Self::emit_score_delta(
+                            &env,
+                            &sub.wallet,
+                            &sub.asset_pair,
+                            previous_score,
+                            sub.score,
+                        );
+                        Self::emit_score_jump_anomaly(
+                            &env,
+                            &sub.wallet,
+                            &sub.asset_pair,
+                            previous_score,
+                            sub.score,
+                            sub.model_version,
+                        );
 
                         events::score_submitted(&env, &sub.wallet, &sub.asset_pair, &risk_score);
                         accepted = true;

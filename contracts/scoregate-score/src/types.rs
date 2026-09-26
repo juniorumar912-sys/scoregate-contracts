@@ -775,6 +775,7 @@ pub enum DataKeyB {
     RevealWindowSecs,
     ScoreBreakdown(Address, Symbol),
     ScoreEntryIndex,
+    ScoreEntryIndexBucket(u32),
     ScoreEntryLastTouchedLedger(Address, Symbol),
     ScoreHistogram,
     ScoreSubmissionLedger(Address, Symbol),
