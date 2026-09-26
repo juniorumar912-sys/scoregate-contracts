@@ -524,6 +524,7 @@ impl ScoreGateScoreContract {
                     if !service_set.contains(&signer) {
                         return Err(Error::UnauthorizedSigner);
                     }
+                    storage::check_signer_expired(&env, &signer)?;
                 }
             }
             Self::verify_threshold_attestation(
@@ -554,10 +555,13 @@ impl ScoreGateScoreContract {
                     if !service_set.contains(&signer) {
                         return Err(Error::UnauthorizedSigner);
                     }
+                    storage::check_signer_expired(&env, &signer)?;
                     signer.require_auth();
                 }
             } else {
-                storage::get_service(&env).require_auth();
+                let service = storage::get_service(&env);
+                storage::check_signer_expired(&env, &service)?;
+                service.require_auth();
             }
             // Opt-in single-key cryptographic attestation.
             if storage::get_service_pubkey(&env).is_some() || attestation.is_some() {
@@ -1459,12 +1463,7 @@ impl ScoreGateScoreContract {
                 } else {
                     let last_submit =
                         storage::get_last_submit_time(&env, &ns.wallet, &ns.asset_pair);
-                    let base_cooldown = storage::get_pair_cooldown_secs(&env, &ns.asset_pair);
-                    let cooldown =
-                        Self::compute_effective_cooldown(&env, &ns.asset_pair, base_cooldown);
-                    if last_submit != 0 && now < last_submit.saturating_add(cooldown) {
-                        rejection_code = Error::RateLimitExceeded as u32;
-                    } else if Self::score_floor_blocks(&env, &ns.wallet, &ns.asset_pair, ns.score) {
+                    if Self::score_floor_blocks(&env, &ns.wallet, &ns.asset_pair, ns.score) {
                         // code 43 = BelowScoreFloor (distinct from InvalidScore=4 for score > 100)
                         rejection_code = 43u32;
                     } else {
@@ -1502,7 +1501,23 @@ impl ScoreGateScoreContract {
                         }
 
                         if !velocity_exceeded {
-                            storage::set_last_submit_time(&env, &ns.wallet, &ns.asset_pair, now);
+                            if Self::consume_rate_limit_token(
+                                &env,
+                                &ns.wallet,
+                                &ns.asset_pair,
+                                now,
+                                last_submit,
+                            )
+                            .is_err()
+                            {
+                                rejection_code = Error::RateLimitExceeded as u32;
+                                results.push_back(BatchEntryResult {
+                                    index: i,
+                                    accepted,
+                                    rejection_code,
+                                });
+                                continue;
+                            }
 
                             let risk_score = RiskScore {
                                 score: ns.score,
@@ -1832,6 +1847,14 @@ impl ScoreGateScoreContract {
                 });
                 continue;
             }
+            if storage::is_pair_paused(&env, &entry.submission.asset_pair) {
+                results.push_back(BatchEntryResult {
+                    index: i,
+                    accepted: false,
+                    rejection_code: Error::PairPaused as u32,
+                });
+                continue;
+            }
 
             // Per-entry Merkle proof check. A failure here rejects only
             // this entry with `InvalidAttestation` — siblings in the same
@@ -1873,7 +1896,12 @@ impl ScoreGateScoreContract {
                 rejection_code = Error::InvalidTimestamp as u32;
             } else if version_check_enabled && !version_set.contains(sub.model_version) {
                 rejection_code = Error::ModelVersionNotRegistered as u32;
-            } else if version_check_enabled {
+            } else if version_check_enabled
+                && !matches!(
+                    storage::get_model_version_status(&env, sub.model_version),
+                    Some(ModelVersionStatus::Active)
+                )
+            {
                 match storage::get_model_version_status(&env, sub.model_version) {
                     Some(ModelVersionStatus::Active) => {}
                     Some(ModelVersionStatus::Proposed) => {
@@ -1888,11 +1916,8 @@ impl ScoreGateScoreContract {
                 }
             } else {
                 let last_submit = storage::get_last_submit_time(&env, &sub.wallet, &sub.asset_pair);
-                let base_cooldown = storage::get_pair_cooldown_secs(&env, &sub.asset_pair);
-                let cooldown =
-                    Self::compute_effective_cooldown(&env, &sub.asset_pair, base_cooldown);
-                if last_submit != 0 && now < last_submit.saturating_add(cooldown) {
-                    rejection_code = Error::RateLimitExceeded as u32;
+                if Self::score_floor_blocks(&env, &sub.wallet, &sub.asset_pair, sub.score) {
+                    rejection_code = 43u32;
                 } else {
                     let previous_score =
                         storage::peek_score(&env, &sub.wallet, &sub.asset_pair).map(|s| s.score);
@@ -1928,7 +1953,19 @@ impl ScoreGateScoreContract {
                     }
 
                     if !velocity_exceeded {
-                        storage::set_last_submit_time(&env, &sub.wallet, &sub.asset_pair, now);
+                        if Self::consume_rate_limit_token(
+                            &env,
+                            &sub.wallet,
+                            &sub.asset_pair,
+                            now,
+                            last_submit,
+                        )
+                        .is_err()
+                        {
+                            rejection_code = Error::RateLimitExceeded as u32;
+                            results.push_back(BatchEntryResult { index: i, accepted, rejection_code });
+                            continue;
+                        }
 
                         let risk_score = RiskScore {
                             score: sub.score,
@@ -11384,29 +11421,23 @@ impl ScoreGateScoreContract {
         Ok(())
     }
 
-    fn write_score_with_rate_limit(
+    fn consume_rate_limit_token(
         env: &Env,
         wallet: &Address,
         asset_pair: &Symbol,
-        risk_score: &RiskScore,
+        now: u64,
+        last_submit: u64,
     ) -> Result<(), Error> {
-        Self::validate_risk_score(env, risk_score)?;
-
-        let now = env.ledger().timestamp();
         let base_cooldown = storage::get_pair_cooldown_secs(env, asset_pair);
         let cooldown = Self::compute_effective_cooldown(env, asset_pair, base_cooldown);
         let capacity = storage::get_burst_capacity(env);
-        // Always read last_submit for use in the velocity-cap check below.
-        let last_submit = storage::get_last_submit_time(env, wallet, asset_pair);
 
         if capacity > 1 {
-            // Token-bucket rate limiting (issue #269).
             let bucket = storage::get_token_bucket(env, wallet, asset_pair);
             let (current_tokens, last_refill) = match bucket {
                 Some(b) => (b.tokens, b.last_refill),
-                None => (capacity, now), // first submission: start with a full bucket
+                None => (capacity, now),
             };
-            // Refill tokens that accumulated since last_refill.
             let elapsed = now.saturating_sub(last_refill);
             let refills = elapsed.checked_div(cooldown).unwrap_or(0);
             let refilled =
@@ -11425,12 +11456,25 @@ impl ScoreGateScoreContract {
                 asset_pair,
                 &TokenBucket { tokens: refilled - 1, last_refill: new_last_refill },
             );
-        } else {
-            // Legacy flat-cooldown check.
-            if last_submit != 0 && now < last_submit.saturating_add(cooldown) {
-                return Err(Error::RateLimitExceeded);
-            }
+        } else if last_submit != 0 && now < last_submit.saturating_add(cooldown) {
+            return Err(Error::RateLimitExceeded);
         }
+
+        storage::set_last_submit_time(env, wallet, asset_pair, now);
+        Ok(())
+    }
+
+    fn write_score_with_rate_limit(
+        env: &Env,
+        wallet: &Address,
+        asset_pair: &Symbol,
+        risk_score: &RiskScore,
+    ) -> Result<(), Error> {
+        Self::validate_risk_score(env, risk_score)?;
+
+        let now = env.ledger().timestamp();
+        let last_submit = storage::get_last_submit_time(env, wallet, asset_pair);
+        Self::consume_rate_limit_token(env, wallet, asset_pair, now, last_submit)?;
 
         let previous_score = storage::peek_score(env, wallet, asset_pair).map(|s| s.score);
         if let Some(prev) = previous_score {
