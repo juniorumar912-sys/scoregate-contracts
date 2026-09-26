@@ -43,7 +43,7 @@ mod reconciliation_tests {
             confidence,
             model_version: 1,
         });
-        client.submit_scores_batch(&batch);
+        client.submit_scores_batch(&Vec::new(&env), &batch);
     }
 
     // ── ok: on-chain score matches pipeline record ───────────────────────────
@@ -213,7 +213,7 @@ mod reconciliation_tests {
             confidence: 88,
             model_version: 1,
         });
-        let result = client.submit_scores_batch(&batch);
+        let result = client.submit_scores_batch(&Vec::new(&env), &batch);
         assert_eq!(result.accepted_count, 1, "corrected score must be accepted after override");
         assert_eq!(client.get_score(&wallet, &pair).score, 72, "reconciliation complete");
     }

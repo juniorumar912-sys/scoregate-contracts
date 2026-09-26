@@ -111,11 +111,11 @@ fn test_batch_resubmit_lazy_ttl_preserves_scores() {
     // Small batch keeps Soroban test snapshots manageable while still exercising
     // the submit_scores_batch path end-to-end.
     let batch = build_batch(&env, &asset_pair, 3, 55);
-    let _ = client.submit_scores_batch(&batch);
+    let _ = client.submit_scores_batch(&Vec::new(&env), &batch);
 
     env.ledger().with_mut(|l| l.timestamp += 3_601);
 
-    let _ = client.submit_scores_batch(&batch);
+    let _ = client.submit_scores_batch(&Vec::new(&env), &batch);
 
     for i in 0..batch.len() {
         let sub = batch.get(i).unwrap();
@@ -128,13 +128,13 @@ fn test_batch_size_boundary_preserves_scores_across_cooldown_and_resubmit() {
     let (env, client, asset_pair) = setup();
     let batch = build_batch(&env, &asset_pair, MAX_BATCH_SIZE, 10);
 
-    let first = client.submit_scores_batch(&batch);
+    let first = client.submit_scores_batch(&Vec::new(&env), &batch);
     assert_eq!(first.accepted_count, MAX_BATCH_SIZE);
     assert_eq!(first.rejected_count, 0);
 
     env.ledger().with_mut(|l| l.timestamp += 3_601);
 
-    let second = client.submit_scores_batch(&batch);
+    let second = client.submit_scores_batch(&Vec::new(&env), &batch);
     assert_eq!(second.accepted_count, MAX_BATCH_SIZE);
     assert_eq!(second.rejected_count, 0);
 

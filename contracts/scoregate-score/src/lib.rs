@@ -1378,7 +1378,7 @@ impl ScoreGateScoreContract {
     /// let mut batch: Vec<ScoreSubmission> = Vec::new(&env);
     /// batch.push_back(ScoreSubmission { wallet: wallet1.clone(), asset_pair: asset_pair.clone(), score: 45, benford_flag: false, ml_flag: false, timestamp: 1000, confidence: 80, model_version: 2 });
     /// batch.push_back(ScoreSubmission { wallet: wallet2.clone(), asset_pair: asset_pair.clone(), score: 85, benford_flag: true, ml_flag: true, timestamp: 2000, confidence: 90, model_version: 2 });
-    /// let result = client.submit_scores_batch(&batch);
+    /// let result = client.submit_scores_batch(&Vec::new(&env), &batch);
     /// assert_eq!(result.accepted_count, 2);
     /// assert_eq!(result.rejected_count, 0);
     /// assert_eq!(result.results.len(), 2);
@@ -1387,6 +1387,7 @@ impl ScoreGateScoreContract {
     /// ```
     pub fn submit_scores_batch(
         env: Env,
+        service_signers: Vec<Address>,
         submissions: Vec<ScoreSubmission>,
     ) -> Result<BatchResult, Error> {
         Self::ensure_active(&env)?;
@@ -1395,8 +1396,7 @@ impl ScoreGateScoreContract {
             return Err(Error::EpochClosed);
         }
 
-        let service = storage::get_service(&env);
-        service.require_auth();
+        Self::require_service_signers_auth(&env, &service_signers)?;
 
         if submissions.is_empty() {
             return Err(Error::EmptyBatch);
@@ -4970,6 +4970,9 @@ impl ScoreGateScoreContract {
             return Err(Error::NotInitialized);
         }
         Self::require_admin_auth(&env, &admin_signers)?;
+        if callers.len() > constants::MAX_GATE_CALLERS {
+            return Err(Error::InvalidArgument);
+        }
         storage::set_gate_callers(&env, &callers);
         Ok(())
     }
@@ -7120,7 +7123,7 @@ impl ScoreGateScoreContract {
         if !storage::has_admin(&env) {
             return Err(Error::NotInitialized);
         }
-        Self::require_policy_auth(&env, Policy::UpgradeGovernance, &admin_signers)?;
+        Self::require_admin_auth(&env, &admin_signers)?;
         let admin = storage::get_admin(&env);
 
         if !storage::has_pending_upgrade(&env) {

@@ -485,7 +485,7 @@ fn batch_submission_updates_commitment() {
         model_version: 1,
     });
 
-    let result = client.submit_scores_batch(&batch);
+    let result = client.submit_scores_batch(&Vec::new(&env), &batch);
     assert_eq!(result.accepted_count, 2);
 
     let after = client.get_state_commitment();

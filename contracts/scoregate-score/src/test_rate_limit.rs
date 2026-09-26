@@ -236,7 +236,7 @@ fn test_batch_rate_limited_entry_skipped() {
         model_version: 1,
     });
 
-    let result: BatchResult = client.submit_scores_batch(&batch);
+    let result: BatchResult = client.submit_scores_batch(&Vec::new(&env), &batch);
     assert_eq!(result.accepted_count, 1);
     assert_eq!(result.rejected_count, 1);
     // First entry (rate-limited) — rejected with code 23 (RateLimitExceeded).
@@ -282,7 +282,7 @@ fn test_batch_second_entry_for_same_pair_rate_limited() {
 
     // Both entries share the same ledger timestamp, so the second is rejected
     // by the cooldown the first entry just set.
-    let result: BatchResult = client.submit_scores_batch(&batch);
+    let result: BatchResult = client.submit_scores_batch(&Vec::new(&env), &batch);
     assert_eq!(result.accepted_count, 1);
     assert_eq!(result.rejected_count, 1);
     // First entry — accepted.

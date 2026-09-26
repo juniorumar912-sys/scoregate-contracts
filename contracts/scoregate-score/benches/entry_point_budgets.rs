@@ -441,7 +441,7 @@ fn bench_submit_scores_batch_size_1(c: &mut Criterion) {
                 model_version: 1,
             });
             black_box(measure(&env, || {
-                black_box(client.submit_scores_batch(&batch));
+                black_box(client.submit_scores_batch(&Vec::new(&env), &batch));
             }))
         });
     });
@@ -466,7 +466,7 @@ fn bench_submit_scores_batch_size_20(c: &mut Criterion) {
                 });
             }
             black_box(measure(&env, || {
-                black_box(client.submit_scores_batch(&batch));
+                black_box(client.submit_scores_batch(&Vec::new(&env), &batch));
             }))
         });
     });
