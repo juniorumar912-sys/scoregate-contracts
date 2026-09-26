@@ -5,6 +5,8 @@ extern crate std;
 
 #[cfg(test)]
 mod test;
+#[cfg(test)]
+mod test_conflict_arbitration;
 const REQUIRED_SHARD_CAPABILITIES: [&str; 4] = ["score", "gate", "aggr", "arch"];
 use scoregate_score::{AggregateRiskScore, Error as ScoreError, RiskScore};
 use soroban_sdk::{
@@ -367,6 +369,49 @@ impl ScoreGateAggregator {
         true
     }
 
+    /// Infallible confidence-gated query across all registered healthy shards.
+    /// Every shard must accept both the risk threshold and the confidence
+    /// floor; transport and contract failures fail the query closed.
+    pub fn query_risk_gate_with_confidence(
+        env: Env,
+        wallet: Address,
+        asset_pair: Symbol,
+        gate_threshold: u32,
+        min_confidence: u32,
+    ) -> bool {
+        if !asset_pair_is_bounded(&env, &asset_pair) {
+            return false;
+        }
+        let shards: Vec<Address> =
+            env.storage().instance().get(&DataKey::Shards).unwrap_or_else(|| Vec::new(&env));
+        if shards.is_empty() {
+            return false;
+        }
+        for i in 0..shards.len() {
+            let shard = shards.get(i).unwrap();
+            if !is_shard_healthy(&env, &shard) {
+                continue;
+            }
+            let client = scoregate_score::ScoreGateScoreContractClient::new(&env, &shard);
+            match client.try_query_risk_gate_with_confidence(
+                &wallet,
+                &asset_pair,
+                &gate_threshold,
+                &min_confidence,
+            ) {
+                Ok(Ok(true)) => {}
+                Ok(Ok(false)) => return false,
+                _ => {
+                    env.storage()
+                        .instance()
+                        .set(&DataKey::LastShardFailure, &(shard.clone(), FAILURE_TRANSPORT));
+                    return false;
+                }
+            }
+        }
+        true
+    }
+
     pub fn get_score(
         env: Env,
         wallet: Address,
@@ -384,6 +429,10 @@ impl ScoreGateAggregator {
                 continue;
             }
             let client = scoregate_score::ScoreGateScoreContractClient::new(&env, &shard);
+            match client.try_is_score_stale(&wallet, &asset_pair) {
+                Ok(Ok(false)) => {}
+                _ => continue,
+            }
             match client.try_get_score(&wallet, &asset_pair) {
                 Ok(Ok(score)) => match &best {
                     None => best = Some(score),
@@ -651,10 +700,10 @@ impl ScoreGateAggregator {
 
         let status = if shard_count == 0 {
             SplitBrainStatus::NoShards
-        } else if quorum_count < required_quorum {
-            SplitBrainStatus::QuorumLost
         } else if mismatch_count > 0 {
             SplitBrainStatus::SplitBrain
+        } else if quorum_count < required_quorum {
+            SplitBrainStatus::QuorumLost
         } else {
             SplitBrainStatus::Aligned
         };

@@ -492,7 +492,7 @@ fn bench_set_service(c: &mut Criterion) {
             let (client, _, _, _) = setup(&env);
             let new_service = Address::generate(&env);
             black_box(measure(&env, || {
-                client.set_service(&new_service);
+                client.set_service(&Vec::new(&env), &new_service);
             }))
         });
     });

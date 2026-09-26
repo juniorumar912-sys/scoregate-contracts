@@ -551,7 +551,7 @@ fn test_set_service_rotates_authorised_account() {
     client.initialize(&admin, &service);
 
     let new_service = Address::generate(&env);
-    client.set_service(&new_service);
+    client.set_service(&Vec::new(&env), &new_service);
 
     assert_eq!(client.get_service(), new_service);
 
@@ -705,7 +705,7 @@ fn test_new_admin_can_manage_service_after_transfer() {
     client.accept_admin();
 
     let new_service = Address::generate(&env);
-    client.set_service(&new_service);
+    client.set_service(&Vec::new(&env), &new_service);
     assert_eq!(client.get_service(), new_service);
 }
 

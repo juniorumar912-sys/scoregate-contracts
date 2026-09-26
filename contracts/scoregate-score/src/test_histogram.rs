@@ -164,14 +164,8 @@ fn test_relative_gate_invalid_percentile() {
     let (env, client, _admin, _service) = initialized();
     let wallet = Address::generate(&env);
     let pair = symbol_short!("XLM_USDC");
-    assert_eq!(
-        client.try_query_risk_gate_relative(&wallet, &pair, &0),
-        Err(Ok(Error::InvalidThreshold))
-    );
-    assert_eq!(
-        client.try_query_risk_gate_relative(&wallet, &pair, &101),
-        Err(Ok(Error::InvalidThreshold))
-    );
+    assert!(!client.query_risk_gate_relative(&wallet, &pair, &0));
+    assert!(!client.query_risk_gate_relative(&wallet, &pair, &101));
 }
 
 #[test]
@@ -179,10 +173,7 @@ fn test_relative_gate_score_not_found() {
     let (env, client, _admin, _service) = initialized();
     let wallet = Address::generate(&env);
     let pair = symbol_short!("XLM_USDC");
-    assert_eq!(
-        client.try_query_risk_gate_relative(&wallet, &pair, &10),
-        Err(Ok(Error::ScoreNotFound))
-    );
+    assert!(!client.query_risk_gate_relative(&wallet, &pair, &10));
 }
 
 #[test]
