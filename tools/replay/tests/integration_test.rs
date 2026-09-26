@@ -36,7 +36,7 @@ mod tests {
             model_version: 1u32,
         });
 
-        let result = client.submit_scores_batch(&batch);
+        let result = client.submit_scores_batch(&Vec::new(&env), &batch);
         assert_eq!(result.accepted_count, 1);
         assert_eq!(result.rejected_count, 0);
 
@@ -65,7 +65,7 @@ mod tests {
             });
         }
 
-        let result = client.submit_scores_batch(&batch);
+        let result = client.submit_scores_batch(&Vec::new(&env), &batch);
         assert_eq!(result.accepted_count, 5);
         assert_eq!(result.rejected_count, 0);
 
@@ -98,7 +98,7 @@ mod tests {
             confidence: 80u32,
             model_version: 1u32,
         });
-        let result1 = client.submit_scores_batch(&batch1);
+        let result1 = client.submit_scores_batch(&Vec::new(&env), &batch1);
         assert_eq!(result1.accepted_count, 1);
 
         env.ledger().with_mut(|l| l.timestamp = ts + 100);
@@ -114,7 +114,7 @@ mod tests {
             confidence: 80u32,
             model_version: 1u32,
         });
-        let result2 = client.submit_scores_batch(&batch2);
+        let result2 = client.submit_scores_batch(&Vec::new(&env), &batch2);
         assert_eq!(result2.rejected_count, 1);
     }
 
@@ -138,7 +138,7 @@ mod tests {
             model_version: 2u32,
         });
 
-        let result1 = client1.submit_scores_batch(&batch1);
+        let result1 = client1.submit_scores_batch(&Vec::new(&env), &batch1);
         let score1 = client1.get_score(&wallet1, &pair1);
         assert_eq!(result1.accepted_count, 1);
         assert_eq!(score1.score, 42);
@@ -168,7 +168,7 @@ mod tests {
             model_version: 1,
         });
 
-        let result = client.submit_scores_batch(&batch);
+        let result = client.submit_scores_batch(&Vec::new(&env), &batch);
         assert_eq!(result.accepted_count, 0);
         assert_eq!(result.rejected_count, 1);
         assert_eq!(
@@ -197,7 +197,7 @@ mod tests {
             model_version: 1,
         });
 
-        let result = client.submit_scores_batch(&batch);
+        let result = client.submit_scores_batch(&Vec::new(&env), &batch);
         assert_eq!(result.accepted_count, 0);
         assert_eq!(result.rejected_count, 1);
         assert_eq!(
@@ -229,7 +229,7 @@ mod tests {
             confidence: 80,
             model_version: 1,
         });
-        let result1 = client.submit_scores_batch(&batch1);
+        let result1 = client.submit_scores_batch(&Vec::new(&env), &batch1);
         assert_eq!(result1.accepted_count, 1);
 
         env.ledger().with_mut(|l| l.timestamp = ts + 100);
@@ -245,7 +245,7 @@ mod tests {
             confidence: 80,
             model_version: 1,
         });
-        let result2 = client.submit_scores_batch(&batch2);
+        let result2 = client.submit_scores_batch(&Vec::new(&env), &batch2);
         assert_eq!(result2.rejected_count, 1);
         assert_eq!(
             result2.results.get(0).unwrap().rejection_code,
@@ -275,7 +275,7 @@ mod tests {
             model_version: 1,
         });
 
-        let result = client.submit_scores_batch(&batch);
+        let result = client.submit_scores_batch(&Vec::new(&env), &batch);
         assert_eq!(result.accepted_count, 0);
         assert_eq!(result.rejected_count, 1);
         assert_eq!(
@@ -309,7 +309,7 @@ mod tests {
             confidence: 80,
             model_version: 1,
         });
-        let result1 = client.submit_scores_batch(&batch1);
+        let result1 = client.submit_scores_batch(&Vec::new(&env), &batch1);
         assert_eq!(result1.accepted_count, 1);
 
         env.ledger().with_mut(|l| l.timestamp = ts + 100);
@@ -325,7 +325,7 @@ mod tests {
             confidence: 80,
             model_version: 1,
         });
-        let result2 = client.submit_scores_batch(&batch2);
+        let result2 = client.submit_scores_batch(&Vec::new(&env), &batch2);
         assert_eq!(result2.rejected_count, 1);
     }
 }

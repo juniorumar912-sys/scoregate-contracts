@@ -53,7 +53,7 @@ fn test_batch_rejection_code_contract_paused() {
         model_version: 1,
     });
 
-    assert_eq!(client.try_submit_scores_batch(&batch), Err(Ok(Error::ContractPaused)));
+    assert_eq!(client.try_submit_scores_batch(&Vec::new(&env), &batch), Err(Ok(Error::ContractPaused)));
 }
 
 #[test]
@@ -76,7 +76,7 @@ fn test_batch_rejection_code_invalid_score() {
         model_version: 1,
     });
 
-    let result = client.submit_scores_batch(&batch);
+    let result = client.submit_scores_batch(&Vec::new(&env), &batch);
 
     // Verify rejection code indicates invalid score
     assert_eq!(result.results.len(), 1);
@@ -109,7 +109,7 @@ fn test_batch_rejection_code_invalid_confidence() {
         model_version: 1,
     });
 
-    let result = client.submit_scores_batch(&batch);
+    let result = client.submit_scores_batch(&Vec::new(&env), &batch);
 
     // Verify rejection code indicates invalid confidence
     assert_eq!(result.results.len(), 1);
@@ -142,7 +142,7 @@ fn test_batch_rejection_code_invalid_timestamp() {
         model_version: 1,
     });
 
-    let result = client.submit_scores_batch(&batch);
+    let result = client.submit_scores_batch(&Vec::new(&env), &batch);
 
     // Verify rejection code indicates invalid timestamp
     assert_eq!(result.results.len(), 1);
@@ -189,7 +189,7 @@ fn test_batch_mixed_acceptance_and_rejection() {
         model_version: 1,
     });
 
-    let result = client.submit_scores_batch(&batch);
+    let result = client.submit_scores_batch(&Vec::new(&env), &batch);
 
     // Verify first entry accepted, second rejected
     assert_eq!(result.results.len(), 2);
@@ -232,7 +232,7 @@ fn test_batch_rejection_deterministic_across_wallets() {
         });
     }
 
-    let result = client.submit_scores_batch(&batch);
+    let result = client.submit_scores_batch(&Vec::new(&env), &batch);
 
     // Verify all entries rejected with same code (deterministic)
     assert_eq!(result.results.len(), 3);
@@ -266,7 +266,7 @@ fn test_rejection_does_not_leak_wallet_data() {
         model_version: 1,
     });
 
-    let result = client.submit_scores_batch(&batch);
+    let result = client.submit_scores_batch(&Vec::new(&env), &batch);
 
     // Verify the event/result contains only rejection reason, not wallet details
     let entry = result.results.get(0).unwrap();
