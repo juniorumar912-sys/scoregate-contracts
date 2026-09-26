@@ -382,7 +382,7 @@ fn test_batch_submission_also_tracks_entries() {
     };
     let mut batch = Vec::new(&env);
     batch.push_back(submission);
-    client.submit_scores_batch(&batch);
+    client.submit_scores_batch(&Vec::new(&env), &batch);
 
     assert_eq!(client.get_entry_ttl(&wallet, &pair), SCORE_TTL_THRESHOLD);
 }

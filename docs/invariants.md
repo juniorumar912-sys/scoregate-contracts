@@ -51,22 +51,8 @@ it). Reading the function top to bottom, every early return on an uncertain path
 `test_confidence_gate_gate_threshold_above_100_returns_false`, `test_confidence_gate_min_confidence_above_100_returns_false`),
 [`test_gate_enforcement.rs`](../contracts/scoregate-score/src/test_gate_enforcement.rs) (`test_strict_mode_unlisted_caller_returns_false`).
 
-**⚠️ Known exception — `query_risk_gate_relative` does not follow this pattern.** Unlike
-`query_risk_gate` / `query_risk_gate_with_confidence` (which return a plain `bool` and are
-infallible), `query_risk_gate_relative` returns `Result<bool, Error>` — it can return
-`Err(Error::InvalidThreshold)` or propagate `Err(Error::ScoreNotFound)` from
-`get_score_percentile`. An integrator who calls `try_query_risk_gate_relative` and doesn't
-explicitly treat every `Err` branch as "deny" can accidentally fail *open*. This function is also
-absent from [`docs/interface-spec.md`](interface-spec.md)'s formal `IScoreGateScore` listing and
-from the `supports_interface` doc-comment's capability table (though its `rgate` capability
-symbol is present in the actual `supports_interface` match arms — see §4's gap note below).
-Tested in [`test_histogram.rs`](../contracts/scoregate-score/src/test_histogram.rs), but not
-flagged anywhere as a deliberately different contract from the other two gates. **This is
-documentation of existing behavior, not a proposal to change the signature** — changing it to an
-infallible `bool` would itself be a breaking ABI change requiring the 30-day notice process in
-`docs/interface-versioning-policy.md`. Flagging as a gap for a follow-up issue: either document
-this divergence prominently in `interface-spec.md` and the function's own doc comment, or
-(separately, with a migration plan) bring it in line with the other two gates.
+`query_risk_gate_relative` follows the same fail-closed rule: it returns a plain `bool` and returns
+`false` for invalid thresholds, invalid pairs, missing scores, or percentile lookup errors.
 
 ---
 
@@ -215,32 +201,12 @@ pub fn pair_weight_updated(env: &Env, asset_pair: &Symbol, weight: u32) {
 }
 
 pub fn pair_weight_reset(env: &Env, asset_pair: &Symbol) {
-    env.events().publish((symbol_short!("pw_rst"), asset_pair.clone()), ());
+   env.events().publish((symbol_short!("pw_rst"), EVENT_VERSION, asset_pair.clone()), ());
 }
 ```yaml
-
-`pair_weight_reset`'s topic tuple has 2 elements (name, pair) where every sibling event has 3
-(name, `EVENT_VERSION`, ...). This went undetected because
-`test_all_events_carry_schema_version` only calls `initialize` and `set_watchlist` — it never
-triggers `bulk_reset_pair_weight` (the only caller of `pair_weight_reset`), so the assertion loop
-never sees this event. **The invariant is real and tested; the test's *coverage* of which events
-it actually observes is the gap.**
-
-A regression test proving this (`test_pair_weight_reset_missing_version_topic` in
-`event_emission.rs`, added in this PR) calls `set_pair_weight` then `bulk_reset_pair_weight` and
-asserts the resulting `pw_rst` event carries `EVENT_VERSION` at topic index 1 — **this test is
-expected to fail against the current `pair_weight_reset` implementation**, which is the point: it
-turns a discovered violation into a tracked, deterministic regression rather than a paragraph
-someone has to take on faith.
-
-**Deliberately not fixed in this PR.** Adding a topic to `pair_weight_reset` changes its shape
-from `(name, pair)` to `(name, EVENT_VERSION, pair)` — anything decoding it by position today
-would break. That's exactly the class of change `docs/interface-versioning-policy.md` requires a
-`CHANGELOG.md` migration entry and a 30-day notice period for. Recommend a dedicated follow-up
-issue scoped to: fix `pair_weight_reset`, decide whether the fix is silent (patch, since this
-specific event realistically has near-zero existing integrators) or goes through the full notice
-process, and broaden `test_all_events_carry_schema_version` to invoke every event-emitting
-function so this class of gap can't recur silently for the *next* new event either.
+`pair_weight_reset` emits the same three-topic shape as its sibling events. The regression
+coverage in `event_emission.rs` exercises `bulk_reset_pair_weight` and verifies that the emitted
+event carries `EVENT_VERSION` at topic index 1.
 
 **No CI-level diff check exists for event topic shape**, unlike §4a's `check_error_discriminants.sh`
 for errors. Flagging as a second, related gap: an analogous script (or an extension of the
@@ -274,14 +240,10 @@ None of the following weaken an invariant that's currently relied upon — they'
 the *documentation or coverage* of an already-real rule has drifted. Recommend each become its
 own tracked follow-up issue rather than being folded into future unrelated PRs:
 
-1. `query_risk_gate_relative` is fallible (`Result<bool, Error>`) unlike its two sibling gates,
-   isn't in `interface-spec.md`, and isn't flagged as an exception anywhere (§1).
-2. No fuzz/adversarial test suite targets the read/gate path, unlike `submit_score` (§2).
-3. No benchmark asserts worst-case resource cost when a bounded collection is filled to its
+1. No fuzz/adversarial test suite targets the read/gate path, unlike `submit_score` (§2).
+2. No benchmark asserts worst-case resource cost when a bounded collection is filled to its
    `MAX_*` cap (§3).
-4. `pair_weight_reset` doesn't carry `EVENT_VERSION`, contradicting the invariant §4b describes —
-   now covered by a deliberately-failing regression test added in this PR.
-5. There's no CI diff-check for event topic-shape stability, unlike the one that exists for error
+3. There's no CI diff-check for event topic-shape stability, unlike the one that exists for error
    discriminants (§4b).
-6. Five `supports_interface` capability symbols (`hpag`, `var`, `histogram`, `rgate`, `dprv`) are
+4. Five `supports_interface` capability symbols (`hpag`, `var`, `histogram`, `rgate`, `dprv`) are
    live but undocumented in both the in-code table and `docs/interface-spec.md` (§4c).

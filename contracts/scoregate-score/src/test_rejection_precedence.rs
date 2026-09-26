@@ -58,7 +58,7 @@ fn test_pair_paused_beats_invalid_score() {
         model_version: 1,
     });
 
-    let result = client.submit_scores_batch(&batch);
+    let result = client.submit_scores_batch(&Vec::new(&env), &batch);
     let entry = result.results.get(0).unwrap();
     assert!(!entry.accepted);
     // PairPaused = ContractPaused = 7, must beat InvalidScore = 4
@@ -88,7 +88,7 @@ fn test_pair_paused_beats_invalid_confidence() {
         model_version: 1,
     });
 
-    let result = client.submit_scores_batch(&batch);
+    let result = client.submit_scores_batch(&Vec::new(&env), &batch);
     let entry = result.results.get(0).unwrap();
     assert!(!entry.accepted);
     assert_eq!(
@@ -118,7 +118,7 @@ fn test_invalid_score_beats_invalid_confidence() {
         model_version: 1,
     });
 
-    let result = client.submit_scores_batch(&batch);
+    let result = client.submit_scores_batch(&Vec::new(&env), &batch);
     let entry = result.results.get(0).unwrap();
     assert!(!entry.accepted);
     assert_eq!(
@@ -146,7 +146,7 @@ fn test_invalid_score_beats_invalid_timestamp() {
         model_version: 1,
     });
 
-    let result = client.submit_scores_batch(&batch);
+    let result = client.submit_scores_batch(&Vec::new(&env), &batch);
     let entry = result.results.get(0).unwrap();
     assert!(!entry.accepted);
     assert_eq!(
@@ -176,7 +176,7 @@ fn test_invalid_confidence_beats_invalid_timestamp() {
         model_version: 1,
     });
 
-    let result = client.submit_scores_batch(&batch);
+    let result = client.submit_scores_batch(&Vec::new(&env), &batch);
     let entry = result.results.get(0).unwrap();
     assert!(!entry.accepted);
     assert_eq!(
@@ -227,7 +227,7 @@ fn test_below_score_floor_uses_invalid_score_code() {
         model_version: 1,
     });
 
-    let result = client.submit_scores_batch(&batch);
+    let result = client.submit_scores_batch(&Vec::new(&env), &batch);
     let entry = result.results.get(0).unwrap();
     assert!(!entry.accepted);
 
@@ -279,7 +279,7 @@ fn test_rate_limit_does_not_override_invalid_score() {
         model_version: 1,
     });
 
-    let result = client.submit_scores_batch(&batch);
+    let result = client.submit_scores_batch(&Vec::new(&env), &batch);
     let entry = result.results.get(0).unwrap();
     assert!(!entry.accepted);
     assert_eq!(
@@ -332,7 +332,7 @@ fn test_valid_entry_accepted_among_invalid_siblings() {
         model_version: 1,
     });
 
-    let result = client.submit_scores_batch(&batch);
+    let result = client.submit_scores_batch(&Vec::new(&env), &batch);
     assert_eq!(result.accepted_count, 1);
     assert_eq!(result.rejected_count, 2);
 

@@ -401,7 +401,7 @@ fn test_batch_respects_override_for_single_entry() {
         model_version: 1,
     });
 
-    let result = client.submit_scores_batch(&batch);
+    let result = client.submit_scores_batch(&Vec::new(&env), &batch);
     assert_eq!(result.accepted_count, 1);
     assert_eq!(result.rejected_count, 1);
     assert!(result.results.get(0).unwrap().accepted);
@@ -627,7 +627,7 @@ fn test_batch_mixed_cooldown_states_per_wallet_pair() {
         model_version: 1,
     });
 
-    let result = client.submit_scores_batch(&batch);
+    let result = client.submit_scores_batch(&Vec::new(&env), &batch);
     // w1 rejected (fresh cooldown), w2 accepted (cooldown expired), w3 accepted (never submitted).
     assert_eq!(result.accepted_count, 2);
     assert_eq!(result.rejected_count, 1);
@@ -674,7 +674,7 @@ fn test_batch_different_pairs_same_wallet_independent_cooldown() {
         model_version: 1,
     });
 
-    let result = client.submit_scores_batch(&batch);
+    let result = client.submit_scores_batch(&Vec::new(&env), &batch);
     // pair_a: rate-limited. pair_b: first submission, accepted.
     assert_eq!(result.accepted_count, 1);
     assert_eq!(result.rejected_count, 1);

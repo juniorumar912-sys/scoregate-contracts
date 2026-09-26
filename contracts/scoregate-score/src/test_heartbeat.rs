@@ -103,7 +103,7 @@ fn test_batch_submission_updates_last_activity() {
         confidence: 80,
         model_version: 1,
     });
-    client.submit_scores_batch(&batch);
+    client.submit_scores_batch(&Vec::new(&env), &batch);
 
     assert_eq!(client.get_last_service_activity(), START_TS);
 }

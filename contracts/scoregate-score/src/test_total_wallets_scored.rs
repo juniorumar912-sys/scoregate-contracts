@@ -198,7 +198,7 @@ fn test_total_wallets_scored_batch_new_combinations() {
         model_version: 1,
     });
 
-    let result = client.submit_scores_batch(&batch);
+    let result = client.submit_scores_batch(&Vec::new(&env), &batch);
     assert_eq!(result.accepted_count, 2);
     assert_eq!(client.get_total_wallets_scored(), 2);
 }
@@ -238,7 +238,7 @@ fn test_total_wallets_scored_batch_existing_combinations_not_double_counted() {
         model_version: 1,
     });
 
-    let result = client.submit_scores_batch(&batch);
+    let result = client.submit_scores_batch(&Vec::new(&env), &batch);
     assert_eq!(result.accepted_count, 1);
     assert_eq!(result.rejected_count, 1);
     // Counter: 1 (primed) + 1 (fresh_wallet) = 2.
