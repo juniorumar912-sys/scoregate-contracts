@@ -5274,13 +5274,17 @@ impl ScoreGateScoreContract {
         wallet: Address,
         asset_pair: Symbol,
         top_percentile: u32,
-    ) -> Result<bool, Error> {
+    ) -> bool {
         if top_percentile == 0 || top_percentile > 100 {
-            return Err(Error::InvalidThreshold);
+            return false;
         }
-        Self::ensure_asset_pair_bounded(&env, &asset_pair)?;
-        let percentile = Self::get_score_percentile(env, wallet, asset_pair)?;
-        Ok(percentile >= 100u32.saturating_sub(top_percentile))
+        if Self::ensure_asset_pair_bounded(&env, &asset_pair).is_err() {
+            return false;
+        }
+        match Self::get_score_percentile(env, wallet, asset_pair) {
+            Ok(percentile) => percentile >= 100u32.saturating_sub(top_percentile),
+            Err(_) => false,
+        }
     }
 
     /// Capability-detection registry for the composability interface.

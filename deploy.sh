@@ -429,7 +429,7 @@ if [ "$DRY_RUN" = false ]; then
       --network-passphrase "$NETWORK_PASSPHRASE" \
       -- \
       freeze_contract \
-      --admin_signants "[\"$ADMIN_ADDRESS\"]" 2>&1); then
+      --admin_signers "[\"$ADMIN_ADDRESS\"]" 2>&1); then
       log "  ✅ freeze_contract OK"
     else
       log "  ❌ freeze_contract failed: $FREEZE_OUTPUT"
@@ -443,7 +443,7 @@ if [ "$DRY_RUN" = false ]; then
       --network-passphrase "$NETWORK_PASSPHRASE" \
       -- \
       unfreeze_contract \
-      --admin_signants "[\"$ADMIN_ADDRESS\"]" 2>&1); then
+      --admin_signers "[\"$ADMIN_ADDRESS\"]" 2>&1); then
       log "  ✅ unfreeze_contract OK"
     else
       log "  ❌ unfreeze_contract failed: $UNFREEZE_OUTPUT"
