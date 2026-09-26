@@ -2180,6 +2180,10 @@ impl ScoreGateScoreContract {
         if !Self::asset_pair_is_bounded(&env, &asset_pair) {
             return false;
         }
+        let active_commitment = Self::get_state_commitment(env.clone());
+        if active_commitment != commitment {
+            return false;
+        }
         // Decode the 48-byte commitment to its inner 32-byte hash.
         let commit_inner = match verkle::bytes48_to_commitment(&commitment) {
             Some(c) => c,
@@ -4751,6 +4755,9 @@ impl ScoreGateScoreContract {
         if !Self::asset_pair_is_bounded(&env, &asset_pair) {
             return false;
         }
+        if threshold > constants::MAX_SCORE {
+            return false;
+        }
         let stored_score = match storage::get_score(&env, &wallet, &asset_pair) {
             Some(s) => s,
             None => return false,
@@ -4784,7 +4791,7 @@ impl ScoreGateScoreContract {
             }
         };
 
-        let (g_pt, _h_pt, d) = zk_range_proof::get_generators();
+        let (g_pt, _h_pt, d) = zk_range_proof::get_generators(&env);
         let tm1 = match threshold.checked_sub(1) {
             Some(val) => val,
             None => {
